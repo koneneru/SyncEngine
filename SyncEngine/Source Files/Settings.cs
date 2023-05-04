@@ -25,6 +25,7 @@ namespace SyncEngine
 			{
 				CreateSettingsFile();
 			}
+
 			try
 			{
 				settings = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(_path))!;
@@ -57,7 +58,7 @@ namespace SyncEngine
 
 		private void CreateSettingsFile()
 		{
-			File.Create(_path);
+			File.Create(_path).Close();
 			UpdateSettingsFile();
 		}
 
