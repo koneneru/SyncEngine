@@ -20,7 +20,10 @@ namespace SyncEngine
 		public static bool Init(string? serverFolder, string? clientFolder)
 		{
 			s_serverFolder = serverFolder ?? PromptForFolderPath("\"Server in the Fluffy Cloud\" Location");
-			s_clientFolder = clientFolder ?? PromptForFolderPath("\"Syncroot (Client)\" Location");
+			if (!string.IsNullOrEmpty(s_serverFolder))
+			{
+				s_clientFolder = clientFolder ?? PromptForFolderPath("\"Syncroot (Client)\" Location");
+			}
 
 			#region "Old Implementation"
 			//if (serverFolder != null)
