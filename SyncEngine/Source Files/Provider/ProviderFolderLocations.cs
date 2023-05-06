@@ -17,25 +17,30 @@ namespace SyncEngine
 		public static string GetServerFolder() { return s_serverFolder!; }
 		public static string GetClientFolder() { return s_clientFolder!; }
 
-		public static bool Init(string serverFolder, string clientFolder)
+		public static bool Init(string? serverFolder, string? clientFolder)
 		{
-			if (serverFolder != null)
-			{
-				s_serverFolder = serverFolder;
-			}
-			if (clientFolder != null)
-			{
-				s_clientFolder = clientFolder;
-			}
+			s_serverFolder = serverFolder ?? PromptForFolderPath("\"Server in the Fluffy Cloud\" Location");
+			s_clientFolder = clientFolder ?? PromptForFolderPath("\"Syncroot (Client)\" Location");
 
-			if (string.IsNullOrEmpty(s_serverFolder))
-			{
-				s_serverFolder = PromptForFolderPath("\"Server in the Fluffy Cloud\" Location");
-			}
-			if (!string.IsNullOrEmpty(s_serverFolder) && string.IsNullOrEmpty(s_clientFolder))
-			{
-				s_clientFolder = PromptForFolderPath("\"Syncroot (Client)\" Location");
-			}
+			#region "Old Implementation"
+			//if (serverFolder != null)
+			//{
+			//	s_serverFolder = serverFolder;
+			//}
+			//if (clientFolder != null)
+			//{
+			//	s_clientFolder = clientFolder;
+			//}
+
+			//if (string.IsNullOrEmpty(s_serverFolder))
+			//{
+			//	s_serverFolder = PromptForFolderPath("\"Server in the Fluffy Cloud\" Location");
+			//}
+			//if (!string.IsNullOrEmpty(s_serverFolder) && string.IsNullOrEmpty(s_clientFolder))
+			//{
+			//	s_clientFolder = PromptForFolderPath("\"Syncroot (Client)\" Location");
+			//}
+			#endregion
 
 			bool result = false;
 			if (!string.IsNullOrEmpty(s_serverFolder) && !string.IsNullOrEmpty(s_clientFolder))
