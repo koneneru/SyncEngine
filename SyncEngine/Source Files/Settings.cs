@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
 
 namespace SyncEngine
 {
-	public class Settings
+	internal class Settings
 	{
 		private readonly string _path;
 
@@ -37,7 +30,7 @@ namespace SyncEngine
 			}
 		}
 
-		public static Settings Instance()
+		public static Settings GetInstance()
 		{
 			return instance ??= new Settings();
 		}

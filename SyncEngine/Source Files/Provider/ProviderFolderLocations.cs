@@ -1,15 +1,20 @@
-﻿using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
-using System.Configuration;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
-
+﻿
 namespace SyncEngine
 {
-	public class ProviderFolderLocations
+	//===============================================================
+	// ProviderFolderLocations
+	//
+	//	 Manages the locations of the folders where the syncroot
+	//   are "cloud" live.
+	//
+	// Fakery Factor:
+	//
+	//   You will likely rewrite all of this. But, look on the bright
+	//   side: This is a tiny class that does barely anything.
+	//
+	//===============================================================
+
+	internal class ProviderFolderLocations
 	{
 		private static string? s_serverFolder;
 		private static string? s_clientFolder;
@@ -66,7 +71,7 @@ namespace SyncEngine
 			};
 
 			// Restore last location used.
-			var settings = Settings.Instance();
+			var settings = Settings.GetInstance();
 			if (settings.HasKey(title))
 			{
 				var lastLocation = settings.Lookup(title);
@@ -85,6 +90,7 @@ namespace SyncEngine
 				return string.Empty;
 			}
 
+			// Save the last location
 			settings.Insert(title, selectFolder.SelectedPath);
 
 			return selectFolder.SelectedPath;

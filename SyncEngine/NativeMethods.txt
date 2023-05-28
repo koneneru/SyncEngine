@@ -1,0 +1,10 @@
+CreateFile
+HeapAlloc
+GetProcessHeap
+ReadFileEx
+SetConsoleCtrlHandler
+GetFileAttributes
+
+GetOverlappedResult
+
+CfGetPlaceholderInfo
