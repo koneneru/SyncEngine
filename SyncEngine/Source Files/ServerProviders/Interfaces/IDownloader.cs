@@ -8,7 +8,7 @@ namespace SyncEngine
 {
 	public interface IDownloader
 	{
-		public bool IsDownloading { get; }
+		public DownloadingStatus Status { get; }
 
 		public Task StartDownloading(string path, CancellationToken cancellationToken);
 

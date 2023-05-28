@@ -16,6 +16,7 @@ using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using Windows.Win32.Foundation;
 using Microsoft.Win32.SafeHandles;
+using System.IO;
 
 namespace SyncEngine
 {
@@ -39,7 +40,7 @@ namespace SyncEngine
 		private CancellationToken GlobalShutdownToken => GlobalShutdownTokenSource.Token;
 
 
-		public List<Placeholder> placeholderList = new();
+		public Dictionary<string, Placeholder> placeholderList = new();
 
 		//DataChangesQueue ToChangeDataOnServerQueue = new();
 
@@ -253,7 +254,7 @@ namespace SyncEngine
 			return Task.FromResult(placeholders);
 		}
 
-		private async Task GetLocalFileListAsync(string subDir, CancellationToken cancellationToken)
+		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
 			placeholderList.Clear();
 			await Task.Run(()=> GetLocalFileListRecursive(subDir), cancellationToken);
@@ -266,7 +267,8 @@ namespace SyncEngine
 			var directory = new DirectoryInfo(fullSubDirPath);
 			foreach (var item in directory.EnumerateFileSystemInfos())
 			{
-				placeholderList.Add(new Placeholder(fullSubDirPath, item));
+				string relativePath = Path.GetRelativePath(localRootFolder, item.FullName);
+				placeholderList.Add(relativePath, new Placeholder(fullSubDirPath, item));
 
 				if (item.Attributes.HasFlag(System.IO.FileAttributes.Directory))
 				{
@@ -425,17 +427,19 @@ namespace SyncEngine
 
 		private async Task SynchronizeAsync(string subDir, CancellationToken cancellationToken)
 		{
-			Task t1 = GetLocalFileListAsync(subDir, cancellationToken);
+			Task t1 = LoadFileListAsync(subDir, cancellationToken);
 			Task t2 = serverProvider.GetFileListAsync(subDir, cancellationToken);
 
 			await t1;
 			await t2;
 
-			foreach(var placeholder in placeholderList)
+			foreach(var item in placeholderList)
 			{
-				var remoteFileInfo = (from a in serverProvider.FileList where string.Equals(placeholder.RelativeFileName, a.RelativeFileName, StringComparison.CurrentCultureIgnoreCase) select a).FirstOrDefault();
+				//var remoteFileInfo = (from a in serverProvider.FileList.Keys where string.Equals(placeholder.RelativeFileName, a.RelativeFileName, StringComparison.CurrentCultureIgnoreCase) select a).FirstOrDefault();
 
-				if (remoteFileInfo != null)
+				var placeholder = item.Value;
+
+				if (!serverProvider.FileList.ContainsKey(item.Key))
 				{
 					// File or directory does not exist on server
 					if (placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_IN_SYNC))
@@ -451,7 +455,7 @@ namespace SyncEngine
 					}
 					else
 					{
-						// File or directory was locally created or modified
+						// File or directory was locally created
 						Change change = new()
 						{
 							RelativePath = placeholder.RelativePath,
@@ -464,23 +468,42 @@ namespace SyncEngine
 				else
 				{
 					// File or directory exists on server
-					Placeholder.ValidateEtag(placeholder, remoteFileInfo!);
+					var remoteFileInfo = serverProvider.FileList[item.Key];
+
+					Placeholder.ValidateEtag(placeholder, remoteFileInfo);
 
 					if (placeholder.StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
 					{
-						if (placeholder.LastWriteTime > remoteFileInfo!.LastWriteTime)
+						if (placeholder.LastWriteTime > remoteFileInfo.LastWriteTime)
 						{
-							// Loacal file modified
-							Change change = new()
+							// File modified loacally
+							if (placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_NO_STATES))
 							{
-								RelativePath = placeholder.RelativePath,
-								Type = ChangeType.Modified,
-								Time = DateTime.UtcNow,
-							};
-							dataProcessor.LocalChanges.Enqueue(change);
+								// Placeholder just created, should fix metadata
+								Change change = new()
+								{
+									RelativePath = placeholder.RelativePath,
+									Type = ChangeType.State,
+									Time = DateTime.UtcNow,
+								};
+								dataProcessor.RemoteChanges.Enqueue(change);
+							}
+							else
+							{
+								// File really was modified locally
+								Change change = new()
+								{
+									RelativePath = placeholder.RelativePath,
+									Type = ChangeType.Modified,
+									Time = DateTime.UtcNow,
+								};
+								dataProcessor.LocalChanges.Enqueue(change);
+							}
+							
 						}
 						else
 						{
+							// File modified remotely
 							Change change = new()
 							{
 								RelativePath = placeholder.RelativePath,
@@ -494,14 +517,18 @@ namespace SyncEngine
 			}
 
 			// Add missing placeholders
-			foreach(var fileInfo in serverProvider.FileList)
+			foreach(var item in serverProvider.FileList)
 			{
-				if(!(from a in placeholderList where string.Equals(fileInfo.RelativeFileName, a.RelativeFileName, StringComparison.CurrentCultureIgnoreCase) select a).Any())
+				var fileInfo = item.Value;
+
+				if (!placeholderList.ContainsKey(item.Key))
 				{
-					string baseDir = fileInfo.RelativePath[0..^fileInfo.RelativeFileName.Length];
+					//string baseDir = fileInfo.RelativePath[0..^fileInfo.RelativeFileName.Length];
+					string baseDir = item.Key[0..^fileInfo.RelativeFileName.Length];
+					string fullDestPath = Path.Combine(localRootFolder, baseDir);
 					var createInfo = fileInfo.ToPlaceholderCreateInfo();
-					var result = CfCreatePlaceholders(baseDir, new[] { createInfo }, 1, CF_CREATE_FLAGS.CF_CREATE_FLAG_NONE, out _);
-					if(!result.Succeeded)
+					var result = CfCreatePlaceholders(fullDestPath, new[] { createInfo }, 1, CF_CREATE_FLAGS.CF_CREATE_FLAG_NONE, out _);
+					if (!result.Succeeded)
 					{
 						Console.WriteLine($"CfCreatePlaceholders for {fileInfo.RelativePath} failed with hr, 0x{result:X8}");
                     }

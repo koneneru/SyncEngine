@@ -18,7 +18,7 @@ namespace SyncEngine
 
 		public SyncContext SyncContext { get; set; }
 
-		public List<FileBasicInfo> FileList { get; }
+		public Dictionary<string, FileBasicInfo> FileList { get; }
 
 		/// <summary>
 		/// Establishing a connection to the Server to check Authentication and for receiving realtime updates.

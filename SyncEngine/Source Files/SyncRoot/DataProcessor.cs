@@ -186,6 +186,7 @@ namespace SyncEngine
 				ChangeType.Created => await AddLocalAsync(change),
 				ChangeType.Deleted => await DeleteLocalAsync(change),
 				ChangeType.Modified => await ModifyLocalAsync(change),
+				ChangeType.State => await ChangeStateAsync(change)
 			};
 		}
 
@@ -203,7 +204,7 @@ namespace SyncEngine
 		{
 			Result modifyResult;
 
-			Placeholder placeholder = (from a in syncContext.SyncRoot.placeholderList where string.Equals(change.RelativePath, a.RelativePath, StringComparison.CurrentCultureIgnoreCase) select a).First();
+			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
 
 			if (!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PARTIAL))
 			{
@@ -222,6 +223,11 @@ namespace SyncEngine
 			}
 
 			return new Result();
+		}
+
+		private async Task<Result> ChangeStateAsync(Change change)
+		{
+			throw new NotImplementedException();
 		}
 		#endregion
 
@@ -272,7 +278,7 @@ namespace SyncEngine
 		{
 			Result modifyResult;
 
-			Placeholder placeholder = (from a in syncContext.SyncRoot.placeholderList where string.Equals(change.RelativePath, a.RelativePath, StringComparison.CurrentCultureIgnoreCase) select a).First();
+			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
 
 			if(!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PARTIAL))
 			{

@@ -58,9 +58,9 @@ namespace SyncEngine
 			FileSize = info.Attributes.HasFlag(FileAttributes.Directory) ? 0 : ((FileInfo)info).Length;
 			FileAttributes = info.Attributes;
 			CreationTime = info.CreationTime;
-			LastAccessTime = info.CreationTime;
-			LastWriteTime = info.CreationTime;
-			ChangeTime = info.CreationTime;
+			LastAccessTime = info.LastAccessTime;
+			LastWriteTime = info.LastWriteTime;
+			ChangeTime = info.LastWriteTime;
 			ETag = new StringBuilder('_')
 				.Append(LastWriteTime.ToUniversalTime().Ticks)
 				.Append('_')

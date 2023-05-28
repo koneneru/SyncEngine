@@ -133,21 +133,19 @@ namespace SyncEngine
 			NtStatus fetchPlaceholdersStatus;
 			SafeNativeArray<CF_PLACEHOLDER_CREATE_INFO> createInfo = new();
 
-			// Get file list from server
-			//await serverProvider.GetFileListAsync(serverProvider.ConnectionString, cancellationToken);
-			var localPlaceholders = (from a in placeholderList where string.Equals(Path.GetDirectoryName(a.RelativePath), subDir) select a).ToList();
-			var remoteFilesInfo = (from a in serverProvider.FileList where string.Equals(Path.GetDirectoryName(a.RelativePath), subDir) select a).ToList();
+			var localPlaceholders = (from a in placeholderList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
+			var remoteFilesInfo = (from a in serverProvider.FileList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
 
 			fetchPlaceholdersStatus = NtStatus.STATUS_SUCCESS;
 
-			if (serverProvider.FileList.Count > 0)
+			if (remoteFilesInfo.Count > 0)
 			{
 				// Convert Placeholder to CF_PLACEHOLDER_CREATE_INFO
 				foreach (var item in remoteFilesInfo)
 				{
 					if (cancellationToken.IsCancellationRequested) return;
-					if (!(from a in localPlaceholders where string.Equals(a.RelativePath, item.RelativePath, StringComparison.CurrentCultureIgnoreCase) select a).Any())
-						createInfo.Add(item.ToPlaceholderCreateInfo());
+					if (!placeholderList.ContainsKey(item))
+						createInfo.Add(serverProvider.FileList[item].ToPlaceholderCreateInfo());
 				}
 			}
 			else
@@ -176,126 +174,22 @@ namespace SyncEngine
 			}
 			else
 			{
-				await SynchronizeAsync(subDir, cancellationToken);
+				await LoadFileListAsync(subDir, cancellationToken);
 			}
-
-			//await GetLocalFileListAsync(subDir, cancellationToken);
 
 			foreach (var item in remoteFilesInfo)
 			{
-				var localPlaceholder = (from a in localPlaceholders where string.Equals(a.RelativePath, item.RelativePath, StringComparison.CurrentCultureIgnoreCase) select a).FirstOrDefault();
+				var localPlaceholder = placeholderList[item];
 
-				if (localPlaceholder != null && localPlaceholder.FileAttributes.HasFlag(FileAttributes.Directory) && item.ETag != localPlaceholder.ETag)
+				if (!localPlaceholder.FileAttributes.HasFlag(FileAttributes.Directory) && serverProvider.FileList[item].ETag != localPlaceholder.ETag)
 					dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
 			}
 
 			foreach (var item in localPlaceholders)
 			{
-				if (!(from a in remoteFilesInfo where string.Equals(a.RelativePath, item.RelativePath, StringComparison.CurrentCultureIgnoreCase) select a).Any())
-					dataProcessor.AddToProcessingQueue(item.RelativePath);
+				if (!serverProvider.FileList.ContainsKey(item))
+					dataProcessor.AddToProcessingQueue(item);
 			}
-
-			//int i = 0;
-			//int j = 0;
-			//while (j < remoteFilesInfo.Count)
-			//{
-			//	//var localPlaceholder = placeholderList[i];
-			//	//var remotePlaceholder = serverProvider.FileList[j];
-			//	var localPlaceholder = localPlaceholders[i];
-			//	var remotePlaceholder = remoteFilesInfo[j];
-
-			//	int comparePathResult = localPlaceholder.RelativePath.CompareTo(remotePlaceholder.RelativePath);
-			//	// In that case comparePathResult cannot be greater than zero, because remotePlaceholders list cannot contain
-			//	// elements that are not in localPlaceholder list
-			//	if (comparePathResult == 0)
-			//	{
-			//		//dataProcessor.AddToProcessingQueue(localPlaceholder, remotePlaceholder);
-			//		dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
-
-			//		#region "Old Implementation"
-			//		//if (!localPlaceholder.HasFlag(FileAttributes.Directory))
-			//		//{
-			//		//	int compareETagResult = localPlaceholder.ETag.CompareTo(remotePlaceholder.ETag);
-			//		//	if (compareETagResult < 0)
-			//		//	{
-			//		//		Change change = new()
-			//		//		{
-			//		//			relativePath = localPlaceholder.RelativePath,
-			//		//			Type = "update",
-			//		//			time = DateTime.Now,
-			//		//		};
-			//		//		dataProcessor.AddToChangeOnServerQueue(change);
-			//		//	}
-			//		//	if (compareETagResult > 0)
-			//		//	{
-			//		//		Change change = new()
-			//		//		{
-			//		//			relativePath = localPlaceholder.RelativePath,
-			//		//			Type = "update",
-			//		//			time = DateTime.Now,
-			//		//		};
-			//		//		AddToChangeOnRootQueue(change);
-			//		//	}
-			//		//}
-			//		#endregion
-
-			//		i++;
-			//		j++;
-			//	}
-			//	else
-			//	{
-			//		//dataProcessor.AddToProcessingQueue(localPlaceholder);
-			//		dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
-
-			//		#region "Old Implementation"
-			//		//Change change = new()
-			//		//{
-			//		//	relativePath = localPlaceholder.RelativePath,
-			//		//	Type = "add",
-			//		//	time = DateTime.Now,
-			//		//};
-			//		//dataProcessor.AddToChangeOnServerQueue(change);
-			//		#endregion
-
-			//		i++;
-			//	}
-			//}
-
-			//while (i < placeholderList.Count)
-			//{
-			//	//dataProcessor.AddToProcessingQueue(localPlaceholders[i]);
-			//	dataProcessor.AddToProcessingQueue(placeholderList[i].RelativePath);
-			//}
-
-			//#region "Old Implementation"
-			////if (i == localPlaceholders.Count)
-			////{
-			////	for (; j < remotePlaceholders.Count; j++)
-			////	{
-			////		Change change = new()
-			////		{
-			////			relativePath = remotePlaceholders[j].RelativePath,
-			////			Type = "",
-			////			time = DateTime.Now,
-			////		};
-			////		AddToChangeOnRootQueue(change);
-			////	}
-			////}
-
-			////if (j == remotePlaceholders.Count)
-			////{
-			////	for (; i < remotePlaceholders.Count; i++)
-			////	{
-			////		Change change = new()
-			////		{
-			////			relativePath = remotePlaceholders[i].RelativePath,
-			////			Type = "add",
-			////			time = DateTime.Now,
-			////		};
-			////		dataProcessor.AddToChangeOnServerQueue(change);
-			////	}
-			////}
-			//#endregion
 		}
 
 		#region "Old Implementation OnFetchPlaceholdersAsync"
@@ -452,80 +346,83 @@ namespace SyncEngine
 		#endregion
 
 		private async void OnFetchDataAsync(FetchDataParams fetchDataParams, CF_CALLBACK_INFO callbackInfo, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
-		{			
-			Placeholder? placeholder = (from a in placeholderList where string.Equals(fetchDataParams, a.RelativePath) select a).FirstOrDefault();
+		{
+			//Placeholder? placeholder = (from a in placeholderList where string.Equals(fetchDataParams, a.RelativePath) select a).FirstOrDefault();
 
-			if (placeholder == null || placeholder.StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
+			if (!placeholderList.ContainsKey(fetchDataParams.RelativePath))// ||
+																		   //placeholderList[fetchDataParams.RelativePath].StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
 			{
-                Console.WriteLine($"Fatching data for {fetchDataParams} failed: STATUS_CLOUD_FILE_NOT_IN_SYNC");
+				Console.WriteLine($"Fetching data for {fetchDataParams} failed: STATUS_CLOUD_FILE_NOT_IN_SYNC");
 
-				CF_OPERATION_PARAMETERS.TRANSFERDATA tdParam = new()
-				{
-					Length = 1,
-					Offset = fetchDataParams.FileOffset,
-					Buffer = IntPtr.Zero,
-					Flags = CF_OPERATION_TRANSFER_DATA_FLAGS.CF_OPERATION_TRANSFER_DATA_FLAG_NONE,
-					CompletionStatus = NTStatus.STATUS_UNSUCCESSFUL
-				};
-				CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
-				CfExecute(opInfo, ref opParams);
+				TransferData(
+						opInfo,
+						IntPtr.Zero,
+						fetchDataParams.FileOffset,
+						1,
+						new NTStatus((uint)NtStatus.STATUS_NOT_A_CLOUD_FILE));
+
+				#region "Old Implementation"
+				//CF_OPERATION_PARAMETERS.TRANSFERDATA tdParam = new()
+				//{
+				//	Length = 1,
+				//	Offset = fetchDataParams.FileOffset,
+				//	Buffer = IntPtr.Zero,
+				//	Flags = CF_OPERATION_TRANSFER_DATA_FLAGS.CF_OPERATION_TRANSFER_DATA_FLAG_NONE,
+				//	CompletionStatus = NTStatus.STATUS_UNSUCCESSFUL
+				//};
+				//CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
+				//CfExecute(opInfo, ref opParams);
+				#endregion;
 
 				return;
 			}
 
+			IntPtr ptr = IntPtr.Zero;
 			try
 			{
 				IDownloader downloader = serverProvider.CreateDownloader();
 				_ = downloader.StartDownloading(fetchDataParams.RelativePath, cancellationToken);
 
-				byte[] stackBuffer = new byte[stackSize];
 				byte[] buffer = new byte[stackSize];
 				long startOffset = fetchDataParams.FileOffset;
 				long remainingLength = fetchDataParams.Length;
 
 				long total = fetchDataParams.Length;
 				long completed = 0;
-				
-				while(remainingLength > 0)
+
+				unsafe
 				{
-					int bytesToRead = (int)Math.Min(remainingLength, chunckSize);
-					int readBytes = downloader.Read(out buffer, 0, startOffset, bytesToRead);
-					NTStatus transferStatus = NTStatus.STATUS_SUCCESS;
-
-					if (readBytes == 0)
+					fixed (void* bufferPtr = buffer)
 					{
-						transferStatus = NTStatus.STATUS_UNSUCCESSFUL;
 
-						//CF_OPERATION_PARAMETERS.TRANSFERDATA tdParam = new()
-						//{
-						//	Length = 1,
-						//	Offset = fetchDataParams.FileOffset,
-						//	Buffer = IntPtr.Zero,
-						//	Flags = CF_OPERATION_TRANSFER_DATA_FLAGS.CF_OPERATION_TRANSFER_DATA_FLAG_NONE,
-						//	CompletionStatus = NTStatus.STATUS_UNSUCCESSFUL
-						//};
-						//CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
-						//CfExecute(opInfo, ref opParams);
+						while (remainingLength > 0)
+						{
+							int bytesToRead = (int)Math.Min(remainingLength, stackSize);
+							int readBytes = downloader.Read(out byte[] readBuffer, 0, startOffset, bytesToRead);
+							NTStatus transferStatus = NTStatus.STATUS_SUCCESS;
 
-						//return;
+							if (downloader.Status == DownloadingStatus.Failed)
+								transferStatus = NTStatus.STATUS_UNSUCCESSFUL;
+
+							if (remainingLength == 0 && downloader.Status == DownloadingStatus.Completed)
+								transferStatus = NTStatus.STATUS_END_OF_FILE;
+
+							Marshal.Copy(readBuffer, 0, (IntPtr)bufferPtr, readBytes);
+
+							TransferData(
+								opInfo,
+								readBytes == 0 ? IntPtr.Zero : (IntPtr)bufferPtr,
+								startOffset,
+								Math.Min(readBytes, remainingLength),
+								transferStatus);
+
+							startOffset += readBytes;
+							completed += readBytes;
+							remainingLength -= readBytes;
+
+							CfReportProviderProgress(opInfo.ConnectionKey, opInfo.TransferKey, total, completed);
+						}
 					}
-
-					if (readBytes < bytesToRead && !downloader.IsDownloading)
-						transferStatus = NTStatus.STATUS_END_OF_FILE;
-										
-					IntPtr ptr = IntPtr.Zero;
-					Marshal.StructureToPtr(buffer, ptr, true);
-
-					TransferData(
-						opInfo,
-						readBytes == 0 ? IntPtr.Zero : ptr,
-						startOffset,
-						readBytes,
-						transferStatus);
-
-					completed += readBytes;
-
-					CfReportProviderProgress(opInfo.ConnectionKey, opInfo.TransferKey, total, completed);
 				}
 			}
 			catch (Exception ex)
@@ -534,15 +431,15 @@ namespace SyncEngine
 			}
 		}
 
-		private void TransferData(CF_OPERATION_INFO opInfo, IntPtr buffer, long offset, long length, NTStatus completionStatus)
+		private static void TransferData(CF_OPERATION_INFO opInfo, IntPtr buffer, long offset, long length, NTStatus completionStatus)
 		{
 			CF_OPERATION_PARAMETERS.TRANSFERDATA tdParam = new()
 			{
-				CompletionStatus = NTStatus.STATUS_SUCCESS,
 				Buffer = buffer,
 				Offset = offset,
 				Length = length,	
 				Flags = CF_OPERATION_TRANSFER_DATA_FLAGS.CF_OPERATION_TRANSFER_DATA_FLAG_NONE,
+				CompletionStatus = completionStatus
 			};
 			CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
 			CfExecute(opInfo, ref opParams);

@@ -24,7 +24,7 @@ namespace SyncEngine.ServerProviders
 		public event EventHandler<ServerProviderStateChangedEventArgs> ServerProviderStateChanged;
 		public event EventHandler<FileChangedEventArgs> FileChanged;
 
-		public List<FileBasicInfo> fileList = new();
+		public Dictionary<string, FileBasicInfo> fileList = new();
 
 		// Since this is a local disk to local-disk copy, it would happen really fast.
 		// This is the size of each chunk to be copied due to the overlapped approach.
@@ -42,7 +42,7 @@ namespace SyncEngine.ServerProviders
 
 		public bool IsConnected { get { return Status == ServerProviderStatus.Connected; } }
 
-		public List<FileBasicInfo> FileList { get { return fileList; } }
+		public Dictionary<string, FileBasicInfo> FileList { get { return fileList; } }
 
         public LocalServerProvider(string path)
         {
@@ -254,6 +254,8 @@ namespace SyncEngine.ServerProviders
 				result = new(ex);
 			}
 
+			await GetFileListAsync(string.Empty, cancellationToken);
+
 			return result;
 		}
 
@@ -307,11 +309,12 @@ namespace SyncEngine.ServerProviders
 			var directory = new DirectoryInfo(fullPath);
 			foreach (var item in directory.EnumerateFileSystemInfos())
 			{
-				fileList.Add(new FileBasicInfo(localServerPath, item));
+				string relativePath = Path.GetRelativePath(localServerPath, item.FullName);
+				fileList.Add(relativePath, new FileBasicInfo(localServerPath, item));
 
 				if (item.Attributes.HasFlag(FileAttributes.Directory))
 				{
-					GetFileListRecursive(item.FullName);
+					GetFileListRecursive(relativePath);
 				}
 			}
 		}

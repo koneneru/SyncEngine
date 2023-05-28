@@ -22,7 +22,7 @@ namespace SyncEngine.Source_Files.ServerProviders.YandexServerProvider
 
 		public SyncContext SyncContext { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-		public List<FileBasicInfo> FileList => throw new NotImplementedException();
+		public Dictionary<string, FileBasicInfo> FileList => throw new NotImplementedException();
 
 		public event EventHandler<ServerProviderStateChangedEventArgs> ServerProviderStateChanged;
 

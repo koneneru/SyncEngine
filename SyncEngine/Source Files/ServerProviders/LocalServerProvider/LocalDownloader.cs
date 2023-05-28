@@ -8,11 +8,20 @@ using System.Threading.Tasks;
 
 namespace SyncEngine
 {
+	public enum DownloadingStatus : short
+	{
+		WaitingStart = 0,
+		Downloading = 1,
+		Completed = 2,
+
+		Failed = -1
+	}
+
 	public class LocalDownloader : IDownloader
 	{
 		private readonly LocalServerProvider _provider;
 		private MemoryStream? _stream;
-		private bool _downloading;
+		private DownloadingStatus _status = DownloadingStatus.WaitingStart;
 		private string _path = string.Empty;
 
 		public LocalDownloader(LocalServerProvider provider)
@@ -20,30 +29,47 @@ namespace SyncEngine
 			_provider = provider;
 		}
 
-		public bool IsDownloading { get { return _downloading; } }
+		public DownloadingStatus Status { get { return _status; } }
 
 		public int Read(out byte[] buffer, int bufferOffset, long offset, int count)
 		{
-			int bytesRead = 0;
-			buffer = new byte[count];
+			long readBytes = 0;
+			buffer = Array.Empty<byte>();
 			try
 			{
-				_stream!.Position = offset;
-				bytesRead = _stream.Read(buffer, bufferOffset, count);
+				byte[] streamBuffer;// = _stream?.GetBuffer();
+				try
+				{
+					readBytes = _stream!.Position;
+					streamBuffer = _stream.GetBuffer();
+				}
+				catch
+				{
+					streamBuffer = _stream!.GetBuffer();
+					readBytes = streamBuffer.Length;
+				}
+
+				readBytes -= offset;
+				readBytes = Math.Min(readBytes, count);
+				if (readBytes > 0)
+				{
+					buffer = new byte[readBytes];
+					Array.Copy(streamBuffer, offset, buffer, bufferOffset, readBytes);
+				}
 			}
 			catch (Exception ex)
 			{
-                Console.WriteLine($"Failed read {_path} bytes[{offset} - {offset+count}]: {ex.Message}");
+				Console.WriteLine($"Failed read {_path} bytes[{offset} - {offset + readBytes}]: {ex.Message}");
             }
 			finally
 			{
-				if(!_downloading && bytesRead == 0)
+				if ((_status == DownloadingStatus.Completed || _status == DownloadingStatus.Completed) && readBytes == 0)
 				{
 					_stream?.Dispose();
 				}
 			}
 
-			return bytesRead;
+			return readBytes < 0 ? 0 : (int)readBytes;
 		}
 
 		public async Task StartDownloading(string path, CancellationToken cancellationToken)
@@ -53,17 +79,18 @@ namespace SyncEngine
 			_path = path;
 			_stream = new MemoryStream();
 			string fullPath = Path.Combine(_provider.ConnectionString, _path);
-			_downloading = true;
+			_status = DownloadingStatus.Downloading;
 			try
 			{
 				await _provider.DownloadFileAsync(fullPath, _stream, cancellationToken);
+				_status = DownloadingStatus.Completed;
 			}
 			catch (Exception ex)
 			{
 				Console.WriteLine($"Downloading {_path} failed: {ex.Message}");
+				_status = DownloadingStatus.Failed;
 				_stream.Dispose();
 			}
-			finally { _downloading = false; }
 		}
 	}
 }
