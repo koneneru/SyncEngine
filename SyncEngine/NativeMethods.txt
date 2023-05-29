@@ -8,3 +8,4 @@ GetFileAttributes
 GetOverlappedResult
 
 CfGetPlaceholderInfo
+SetFileTime

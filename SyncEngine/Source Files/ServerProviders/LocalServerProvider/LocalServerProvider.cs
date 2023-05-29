@@ -34,6 +34,8 @@ namespace SyncEngine.ServerProviders
 		// move.
 		private readonly int chunkDelayms = 250;
 
+		private bool inSyncing = false;
+
 		public string ConnectionString { get { return localServerPath; } }
 
 		public ServerProviderStatus Status { get { return status; } }
@@ -298,8 +300,14 @@ namespace SyncEngine.ServerProviders
 
 		public async Task GetFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
-			fileList.Clear();
-			await Task.Run(() => GetFileListRecursive(subDir), cancellationToken);
+			if (!inSyncing)
+			{
+				inSyncing = true;
+				fileList.Clear();
+				await Task.Run(() => GetFileListRecursive(subDir), cancellationToken);
+				inSyncing = false;
+			}
+			
 		}
 
 		private void GetFileListRecursive(string subDir)
@@ -307,7 +315,8 @@ namespace SyncEngine.ServerProviders
 			string fullPath = Path.Combine(localServerPath, subDir);
 
 			var directory = new DirectoryInfo(fullPath);
-			foreach (var item in directory.EnumerateFileSystemInfos())
+			var t = directory.EnumerateFileSystemInfos();
+			foreach (var item in t)
 			{
 				string relativePath = Path.GetRelativePath(localServerPath, item.FullName);
 				fileList.Add(relativePath, new FileBasicInfo(localServerPath, item));

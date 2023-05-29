@@ -15,8 +15,11 @@ using System.Diagnostics;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using Windows.Win32.Foundation;
+using Windows.Win32.Storage.FileSystem;
 using Microsoft.Win32.SafeHandles;
 using System.IO;
+using Vanara.Extensions;
+using Windows.Win32;
 
 namespace SyncEngine
 {
@@ -33,8 +36,11 @@ namespace SyncEngine
 		private CF_CONNECTION_KEY ConnectionKey;
 		public DataProcessor dataProcessor;
 		SyncRootFileSystemWatcher watcher;
-		private readonly int chunckSize = 1024 * 1024 * 2;
-		private readonly int stackSize = 1024 * 512;
+		//private readonly int chunckSize = 1024 * 1024 * 2;
+		private readonly int stackSize = 1024 * 512; // Buffer size for P/Invoke Call to CFExecute max 1 MB
+
+		private readonly System.Threading.Timer ResyncTimer;
+		private readonly TimeSpan ResyncInterval = TimeSpan.FromSeconds(10);
 
 
 		private CancellationToken GlobalShutdownToken => GlobalShutdownTokenSource.Token;
@@ -54,6 +60,8 @@ namespace SyncEngine
 
 			syncContext = new(this, cloud);
 			syncContext.ServerProvider.SyncContext = syncContext;
+
+			ResyncTimer = new(ResyncTimerCallback, null, ResyncInterval, ResyncInterval);
 		}
 
 		public async Task Start()
@@ -129,16 +137,17 @@ namespace SyncEngine
 				{
 					// This string can be in any form acceptable to SHLoadIndirectString
 					DisplayNameResource = "KoneruLocalSyncRoot",
+					HardlinkPolicy = StorageProviderHardlinkPolicy.None,
+					HydrationPolicy = StorageProviderHydrationPolicy.Partial,
+					HydrationPolicyModifier = StorageProviderHydrationPolicyModifier.AutoDehydrationAllowed |
+						StorageProviderHydrationPolicyModifier.StreamingAllowed,
 					// This icon is just for the sample. You should provide your own branded icon here
 					IconResource = @"%SystemRoot%\system32\imageres.dll,-1043",
-					HydrationPolicy = StorageProviderHydrationPolicy.Full,
-					HydrationPolicyModifier = StorageProviderHydrationPolicyModifier.None,
 					//PopulationPolicy = StorageProviderPopulationPolicy.AlwaysFull,
 					PopulationPolicy = StorageProviderPopulationPolicy.Full,
-					InSyncPolicy = StorageProviderInSyncPolicy.FileCreationTime | StorageProviderInSyncPolicy.DirectoryCreationTime,
+					InSyncPolicy = StorageProviderInSyncPolicy.FileLastWriteTime | StorageProviderInSyncPolicy.DirectoryLastWriteTime,
 					Version = Application.ProductVersion,
 					ShowSiblingsAsGroup = false,
-					HardlinkPolicy = StorageProviderHardlinkPolicy.None,
 
 					RecycleBinUri = null,
 
@@ -239,21 +248,6 @@ namespace SyncEngine
 			return result;
 		}
 
-		private Task<List<FileBasicInfo>> GetLocalFileList(string subDir, CancellationToken cancellationToken)
-		{
-			string fullPath = Path.Combine(localRootFolder, subDir);
-			List<FileBasicInfo> placeholders = new();
-
-			var directory = new DirectoryInfo(fullPath);
-			foreach(var item in directory.EnumerateFileSystemInfos())
-			{
-				cancellationToken.ThrowIfCancellationRequested();
-				placeholders.Add(new FileBasicInfo(fullPath, item));
-			}
-
-			return Task.FromResult(placeholders);
-		}
-
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
 			placeholderList.Clear();
@@ -262,18 +256,40 @@ namespace SyncEngine
 
 		private void GetLocalFileListRecursive(string subDir)
 		{
-			string fullSubDirPath = Path.Combine(localRootFolder, subDir);
+			Kernel32.SafeSearchHandle hFileHandle;
 
-			var directory = new DirectoryInfo(fullSubDirPath);
-			foreach (var item in directory.EnumerateFileSystemInfos())
+			string dirPath = Path.Combine(localRootFolder, subDir);
+			string filePattern = Path.Combine(dirPath, "*");
+
+			WIN32_FIND_DATA findData;
+			hFileHandle = Kernel32.FindFirstFileEx(
+				filePattern,
+				Kernel32.FINDEX_INFO_LEVELS.FindExInfoStandard,
+				out findData,
+				Kernel32.FINDEX_SEARCH_OPS.FindExSearchNameMatch,
+				IntPtr.Zero,
+				Kernel32.FIND_FIRST.FIND_FIRST_EX_ON_DISK_ENTRIES_ONLY);
+
+			if (!hFileHandle.IsInvalid)
 			{
-				string relativePath = Path.GetRelativePath(localRootFolder, item.FullName);
-				placeholderList.Add(relativePath, new Placeholder(fullSubDirPath, item));
-
-				if (item.Attributes.HasFlag(System.IO.FileAttributes.Directory))
+				do
 				{
-					GetLocalFileListRecursive(item.FullName);
+					if (findData.cFileName == "." || findData.cFileName == "..")
+					{
+						continue;
+					}
+
+					string relativePath = Path.Combine(subDir, findData.cFileName);
+					placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+
+					if (findData.dwFileAttributes.HasFlag(System.IO.FileAttributes.Directory))
+					{
+						GetLocalFileListRecursive(relativePath);
+					}
 				}
+				while (Kernel32.FindNextFile(hFileHandle, out findData));
+
+				hFileHandle.Close();
 			}
 		}
 
@@ -400,7 +416,6 @@ namespace SyncEngine
 			string fullPath = GetFullPath(relativePath);
 
 			FileStream fs = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-			var fileHandle = fs.SafeFileHandle;
 
 			var uploadResult = await serverProvider.UploadFileAsync(relativePath, fs, uploadMode, cancellationToken);
 
@@ -412,14 +427,28 @@ namespace SyncEngine
 			{
 				Console.WriteLine($"Uploading {relativePath} succeed");
 
-				var inSyncResult = CfSetInSyncState(fileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
+				var placeholder = placeholderList[relativePath];
+				var remoteFileInfo = serverProvider.FileList[relativePath];
+
+				FileStream fss = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
+
+				// Update local LastWriteTime. Use Server Time to ensure consistent change time.
+				if (placeholder.LastWriteTime != remoteFileInfo.LastWriteTime)
+				{
+					var res = Windows.Win32.PInvoke.SetFileTime(fss.SafeFileHandle, null, null, remoteFileInfo.LastWriteTime.ToFileTimeStruct());
+					if (!res) Console.WriteLine(Marshal.GetLastWin32Error());
+				}
+
+				var inSyncResult = CfSetInSyncState(fss.SafeFileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
+
+				fss.Close();
 
 				if(!inSyncResult.Succeeded)
 				{
-                    Console.WriteLine($"Failed to set In_Sync_State, with hr 0x{inSyncResult:X8}");
+                    Console.WriteLine($"Failed to set In_Sync_State, with {inSyncResult:X8}");
                 }
 
-				//syncContext.SyncRoot.UpdatePlaceholder(uploadResult.Data!, CF_UPDATE_FLAGS.CF_UPDATE_FLAG_MARK_IN_SYNC);
+				ReloadPlaceholder(placeholder);
 			}
 			
 			return uploadResult;
@@ -427,6 +456,8 @@ namespace SyncEngine
 
 		private async Task SynchronizeAsync(string subDir, CancellationToken cancellationToken)
 		{
+			Console.WriteLine($"Start Synchronization for root\\{subDir}");
+
 			Task t1 = LoadFileListAsync(subDir, cancellationToken);
 			Task t2 = serverProvider.GetFileListAsync(subDir, cancellationToken);
 
@@ -435,9 +466,17 @@ namespace SyncEngine
 
 			foreach(var item in placeholderList)
 			{
-				//var remoteFileInfo = (from a in serverProvider.FileList.Keys where string.Equals(placeholder.RelativeFileName, a.RelativeFileName, StringComparison.CurrentCultureIgnoreCase) select a).FirstOrDefault();
-
 				var placeholder = item.Value;
+
+				if (placeholder.ConvertToPlaceholder())
+				{
+					ReloadPlaceholder(placeholder);
+				}
+				else
+				{
+                    Console.WriteLine($"{placeholder.RelativePath} is not a placeholder");
+                    continue;
+				}
 
 				if (!serverProvider.FileList.ContainsKey(item.Key))
 				{
@@ -472,12 +511,12 @@ namespace SyncEngine
 
 					Placeholder.ValidateEtag(placeholder, remoteFileInfo);
 
-					if (placeholder.StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
+					if (placeholder.StandartInfo.InSyncState == CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC)
 					{
 						if (placeholder.LastWriteTime > remoteFileInfo.LastWriteTime)
 						{
 							// File modified loacally
-							if (placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_NO_STATES))
+							if (placeholder.PlaceholderState == CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_NO_STATES)
 							{
 								// Placeholder just created, should fix metadata
 								Change change = new()
@@ -499,7 +538,7 @@ namespace SyncEngine
 								};
 								dataProcessor.LocalChanges.Enqueue(change);
 							}
-							
+
 						}
 						else
 						{
@@ -533,6 +572,45 @@ namespace SyncEngine
 						Console.WriteLine($"CfCreatePlaceholders for {fileInfo.RelativePath} failed with hr, 0x{result:X8}");
                     }
 				}
+			}
+
+			
+		}
+
+		private async void ResyncTimerCallback(object sender)
+		{
+			if (!isConnected) return;
+
+			ResyncTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+			try
+			{
+				await SynchronizeAsync(string.Empty, GlobalShutdownToken);
+			}
+			//catch (Exception ex)
+			//{
+   //             Console.WriteLine($"Resync for root failed: {ex.Message}");
+   //         }
+			finally
+			{
+				ResyncTimer.Change(ResyncInterval, ResyncInterval);
+			}
+		}
+
+		private void ReloadPlaceholder(Placeholder placeholder)
+		{
+			var fileHandle = Kernel32.FindFirstFile(placeholder.fullPath, out WIN32_FIND_DATA findData);
+			try
+			{
+				placeholderList[placeholder.RelativePath] = new Placeholder(localRootFolder, placeholder.RelativePath, findData);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Failed reload placeholder {placeholder.RelativePath}: {ex.Message}");
+			}
+			finally
+			{
+				fileHandle?.Close();
 			}
 		}
 	}

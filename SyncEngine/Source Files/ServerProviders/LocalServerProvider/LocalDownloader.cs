@@ -1,10 +1,4 @@
 ﻿using SyncEngine.ServerProviders;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SyncEngine
 {
@@ -37,7 +31,7 @@ namespace SyncEngine
 			buffer = Array.Empty<byte>();
 			try
 			{
-				byte[] streamBuffer;// = _stream?.GetBuffer();
+				byte[] streamBuffer;
 				try
 				{
 					readBytes = _stream!.Position;

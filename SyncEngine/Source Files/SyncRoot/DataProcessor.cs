@@ -162,7 +162,6 @@ namespace SyncEngine
 						try
 						{
 							await ChangesToProcessRemote.SendAsync(item);
-							//await ProcessDataRemote(item);
 						}
 						catch (Exception ex)
 						{

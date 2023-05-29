@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -38,7 +39,7 @@ namespace SyncEngine
 					return kct;
 				});
 
-				OnFetchPlaceholdersAsync(relativePath, opInfo, callbackParameters.FetchPlaceholders.Pattern, kct.Token);
+				OnFetchPlaceholdersAsync(relativePath, opInfo, kct.Token);
 			}
 			else
 			{
@@ -75,7 +76,17 @@ namespace SyncEngine
 
 		private void OnFetchData(in CF_CALLBACK_INFO callbackInfo, in CF_CALLBACK_PARAMETERS callbackParameters)
 		{
-			Console.WriteLine("Fetch Data");
+			Console.WriteLine("[0x{0:X4}:0x{1:X4}] - Recieved data request for {2}{3}, priority {4}, offset 0x{5:X8}`0x{6:X8} length 0x{7:X8}`0x{8:X8}",
+				Process.GetCurrentProcess().Id,
+				Process.GetCurrentProcess().Threads[0].Id,
+				callbackInfo.VolumeDosName,
+				callbackInfo.NormalizedPath,
+				callbackInfo.PriorityHint,
+				callbackParameters.FetchData.RequiredFileOffset.HighPart(),
+				callbackParameters.FetchData.RequiredFileOffset.LowPart(),
+				callbackParameters.FetchData.RequiredLength.HighPart(),
+				callbackParameters.FetchData.RequiredLength.LowPart());
+
 			var opInfo = CloudApiHelper.CreateOperationInfo(callbackInfo, CF_OPERATION_TYPE.CF_OPERATION_TYPE_TRANSFER_DATA);
 
 			if (!serverProvider.IsConnected)
@@ -89,20 +100,12 @@ namespace SyncEngine
 					CompletionStatus = new NTStatus((uint)NtStatus.STATUS_CLOUD_FILE_NETWORK_UNAVAILABLE)
 				};
 				CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
-				HRESULT result = CfExecute(opInfo, ref opParams);
+				CfExecute(opInfo, ref opParams);
 
-				Console.WriteLine($"Fetch placeholders failed: STATUS_CLOUD_FILE_NETWORK_UNAVAILABLE");
+				Console.WriteLine($"Fetch data failed: STATUS_CLOUD_FILE_NETWORK_UNAVAILABLE");
 
 				return;
 			}
-			
-			Console.WriteLine(@"FETCH_DATA: Priority {0}  / R {1} - {2} / O {3} - {4} / {5}",
-				callbackInfo.PriorityHint,
-				callbackParameters.FetchData.RequiredFileOffset,
-				callbackParameters.FetchData.RequiredLength,
-				callbackParameters.FetchData.OptionalFileOffset,
-				callbackParameters.FetchData.OptionalLength,
-				callbackInfo.NormalizedPath);
 
 			string relativePath = Path.GetRelativePath(localRootFolder, callbackInfo.NormalizedPath);
 			relativePath = relativePath == "." ? string.Empty : relativePath;
@@ -116,8 +119,6 @@ namespace SyncEngine
 				TransferKey = callbackInfo.TransferKey,
 			};
 
-			_ = callbackParameters.FetchData.RequiredFileOffset;
-
 			OnFetchDataAsync(data, callbackInfo, opInfo, new CancellationToken());
 		}
 
@@ -128,7 +129,7 @@ namespace SyncEngine
 			//FileCopierWithProgress.CancelCopyFromServerToClient(callbackInfo, callbackParameters);
 		}
 
-		private async void OnFetchPlaceholdersAsync(string subDir, CF_OPERATION_INFO opInfo, string pattern, CancellationToken cancellationToken)
+		private async void OnFetchPlaceholdersAsync(string subDir, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
 		{
 			NtStatus fetchPlaceholdersStatus;
 			SafeNativeArray<CF_PLACEHOLDER_CREATE_INFO> createInfo = new();
@@ -192,165 +193,12 @@ namespace SyncEngine
 			}
 		}
 
-		#region "Old Implementation OnFetchPlaceholdersAsync"
-		//private async void OnFetchPlaceholdersAsync(string subDir, CF_OPERATION_INFO opInfo, string pattern, CancellationToken cancellationToken)
-		//{
-		//	NtStatus fetchPlaceholdersStatus;
-		//	SafeNativeArray<CF_PLACEHOLDER_CREATE_INFO> createInfo = new();
-
-		//	// Get file list from server
-		//	var getRemoteFileListResult = await serverProvider.GetFileList(subDir, cancellationToken);
-
-		//	fetchPlaceholdersStatus = getRemoteFileListResult.Status;
-		//	List<FileBasicInfo> remotePlaceholders = getRemoteFileListResult.Data!;
-
-		//	if (getRemoteFileListResult.Succeeded)
-		//	{
-		//		// Convert Placeholder to CF_PLACEHOLDER_CREATE_INFO
-		//		foreach (var item in remotePlaceholders)
-		//		{
-		//			if (cancellationToken.IsCancellationRequested) return;
-		//			createInfo.Add(item.ToPlaceholderCreateInfo());
-		//		}
-		//	}
-		//	else
-		//	{
-		//		if (getRemoteFileListResult.Status == NtStatus.STATUS_NOT_A_CLOUD_FILE)
-		//			fetchPlaceholdersStatus = NtStatus.STATUS_SUCCESS;
-		//		else
-		//			fetchPlaceholdersStatus = getRemoteFileListResult.Status;
-		//	}
-
-		//	uint total = (uint)createInfo.Count;
-		//	CF_OPERATION_PARAMETERS.TRANSFERPLACEHOLDERS tpParam = new()
-		//	{
-		//		Flags = CF_OPERATION_TRANSFER_PLACEHOLDERS_FLAGS.CF_OPERATION_TRANSFER_PLACEHOLDERS_FLAG_DISABLE_ON_DEMAND_POPULATION,
-		//		CompletionStatus = new NTStatus((uint)fetchPlaceholdersStatus),
-		//		PlaceholderCount = total,
-		//		PlaceholderTotalCount = total,
-		//		PlaceholderArray = createInfo,
-		//	};
-		//	CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tpParam);
-		//	HRESULT executeResult = CfExecute(opInfo, ref opParams);
-
-		//	FetchPlaceholderCancellationTokens.TryRemove(subDir, out _);
-
-		//	if (fetchPlaceholdersStatus != NtStatus.STATUS_SUCCESS || !executeResult.Succeeded)
-		//	{
-		//              Console.WriteLine($"Failed to fetch placeholders, hr 0x{executeResult:X8}");
-		//		return;
-		//          }
-
-		//	var localPlaceholders = await GetLocalFileList(subDir, cancellationToken);
-
-		//	int i = 0;
-		//	int j = 0;
-		//	while(j < remotePlaceholders.Count)
-		//	{
-		//		var localPlaceholder = localPlaceholders[i];
-		//		var remotePlaceholder = remotePlaceholders[j];
-
-		//		int comparePathResult = localPlaceholder.RelativePath.CompareTo(remotePlaceholder.RelativePath);
-		//		// In that case comparePathResult cannot be greater than zero, because remotePlaceholders list cannot contain
-		//		// elements that are not in localPlaceholder list
-		//		if (comparePathResult == 0)
-		//		{
-		//			//dataProcessor.AddToProcessingQueue(localPlaceholder, remotePlaceholder);
-		//			dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
-
-		//			#region "Old Implementation"
-		//			//if (!localPlaceholder.HasFlag(FileAttributes.Directory))
-		//			//{
-		//			//	int compareETagResult = localPlaceholder.ETag.CompareTo(remotePlaceholder.ETag);
-		//			//	if (compareETagResult < 0)
-		//			//	{
-		//			//		Change change = new()
-		//			//		{
-		//			//			relativePath = localPlaceholder.RelativePath,
-		//			//			Type = "update",
-		//			//			time = DateTime.Now,
-		//			//		};
-		//			//		dataProcessor.AddToChangeOnServerQueue(change);
-		//			//	}
-		//			//	if (compareETagResult > 0)
-		//			//	{
-		//			//		Change change = new()
-		//			//		{
-		//			//			relativePath = localPlaceholder.RelativePath,
-		//			//			Type = "update",
-		//			//			time = DateTime.Now,
-		//			//		};
-		//			//		AddToChangeOnRootQueue(change);
-		//			//	}
-		//			//}
-		//			#endregion
-
-		//			i++;
-		//			j++;
-		//		}
-		//		else
-		//		{
-		//			//dataProcessor.AddToProcessingQueue(localPlaceholder);
-		//			dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
-
-		//			#region "Old Implementation"
-		//			//Change change = new()
-		//			//{
-		//			//	relativePath = localPlaceholder.RelativePath,
-		//			//	Type = "add",
-		//			//	time = DateTime.Now,
-		//			//};
-		//			//dataProcessor.AddToChangeOnServerQueue(change);
-		//			#endregion
-
-		//			i++;
-		//		}
-		//	}
-
-		//	while(i< localPlaceholders.Count)
-		//	{
-		//		//dataProcessor.AddToProcessingQueue(localPlaceholders[i]);
-		//		dataProcessor.AddToProcessingQueue(localPlaceholders[i].RelativePath);
-		//	}
-
-		//	#region "Old Implementation"
-		//	//if (i == localPlaceholders.Count)
-		//	//{
-		//	//	for (; j < remotePlaceholders.Count; j++)
-		//	//	{
-		//	//		Change change = new()
-		//	//		{
-		//	//			relativePath = remotePlaceholders[j].RelativePath,
-		//	//			Type = "",
-		//	//			time = DateTime.Now,
-		//	//		};
-		//	//		AddToChangeOnRootQueue(change);
-		//	//	}
-		//	//}
-
-		//	//if (j == remotePlaceholders.Count)
-		//	//{
-		//	//	for (; i < remotePlaceholders.Count; i++)
-		//	//	{
-		//	//		Change change = new()
-		//	//		{
-		//	//			relativePath = remotePlaceholders[i].RelativePath,
-		//	//			Type = "add",
-		//	//			time = DateTime.Now,
-		//	//		};
-		//	//		dataProcessor.AddToChangeOnServerQueue(change);
-		//	//	}
-		//	//}
-		//	#endregion
-		//}
-		#endregion
-
 		private async void OnFetchDataAsync(FetchDataParams fetchDataParams, CF_CALLBACK_INFO callbackInfo, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
 		{
 			//Placeholder? placeholder = (from a in placeholderList where string.Equals(fetchDataParams, a.RelativePath) select a).FirstOrDefault();
 
 			if (!placeholderList.ContainsKey(fetchDataParams.RelativePath))// ||
-																		   //placeholderList[fetchDataParams.RelativePath].StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
+				//placeholderList[fetchDataParams.RelativePath].StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
 			{
 				Console.WriteLine($"Fetching data for {fetchDataParams} failed: STATUS_CLOUD_FILE_NOT_IN_SYNC");
 
@@ -360,19 +208,6 @@ namespace SyncEngine
 						fetchDataParams.FileOffset,
 						1,
 						new NTStatus((uint)NtStatus.STATUS_NOT_A_CLOUD_FILE));
-
-				#region "Old Implementation"
-				//CF_OPERATION_PARAMETERS.TRANSFERDATA tdParam = new()
-				//{
-				//	Length = 1,
-				//	Offset = fetchDataParams.FileOffset,
-				//	Buffer = IntPtr.Zero,
-				//	Flags = CF_OPERATION_TRANSFER_DATA_FLAGS.CF_OPERATION_TRANSFER_DATA_FLAG_NONE,
-				//	CompletionStatus = NTStatus.STATUS_UNSUCCESSFUL
-				//};
-				//CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
-				//CfExecute(opInfo, ref opParams);
-				#endregion;
 
 				return;
 			}
@@ -427,7 +262,7 @@ namespace SyncEngine
 			}
 			catch (Exception ex)
 			{
-
+				Console.WriteLine($"OnFetchDataAsync for {fetchDataParams} failed with {ex.Message}");
 			}
 		}
 
