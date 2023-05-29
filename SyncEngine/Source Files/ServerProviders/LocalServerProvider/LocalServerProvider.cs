@@ -19,7 +19,6 @@ namespace SyncEngine.ServerProviders
 		private ServerProviderStatus status = ServerProviderStatus.Disconnected;
 		private readonly System.Threading.Timer connectionTimer;
 		private readonly System.Threading.Timer fullResyncTimer;
-		private Stream? fileStream;
 
 		public event EventHandler<ServerProviderStateChangedEventArgs> ServerProviderStateChanged;
 		public event EventHandler<FileChangedEventArgs> FileChanged;
@@ -92,37 +91,6 @@ namespace SyncEngine.ServerProviders
 		public IServerFileReader GetFileReader()
 		{
 			return new ServerFileReader(this);
-		}
-
-		public async Task<DataResult<List<FileBasicInfo>>> GetFileList(string subDir, CancellationToken cancellationToken)
-		{
-			if (status != ServerProviderStatus.Connected)
-				return new DataResult<List<FileBasicInfo>>(NtStatus.STATUS_CLOUD_FILE_NETWORK_UNAVAILABLE);
-
-			List<FileBasicInfo> placeholders = new();
-
-			using (var filesInfoList = new LocalServerFilesInfoList(this))
-			{
-				var fillListResult = await filesInfoList.FillListAsync(subDir, cancellationToken);
-
-				if (!fillListResult.Succeeded)
-					return new DataResult<List<FileBasicInfo>>(fillListResult.Status);
-
-				var takeNextResult = filesInfoList.TakeNext();
-				do
-				{
-					if (takeNextResult.Data != null)
-						placeholders.Add(takeNextResult.Data);
-
-					if (cancellationToken.IsCancellationRequested)
-						break;
-
-					takeNextResult = filesInfoList.TakeNext();
-				}
-				while (takeNextResult.Succeeded && !cancellationToken.IsCancellationRequested);
-			}
-
-			return new DataResult<List<FileBasicInfo>>(placeholders);
 		}
 
 		public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath)

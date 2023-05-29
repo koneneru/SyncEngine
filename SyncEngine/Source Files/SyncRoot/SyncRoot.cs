@@ -261,11 +261,10 @@ namespace SyncEngine
 			string dirPath = Path.Combine(localRootFolder, subDir);
 			string filePattern = Path.Combine(dirPath, "*");
 
-			WIN32_FIND_DATA findData;
 			hFileHandle = Kernel32.FindFirstFileEx(
 				filePattern,
 				Kernel32.FINDEX_INFO_LEVELS.FindExInfoStandard,
-				out findData,
+				out WIN32_FIND_DATA findData,
 				Kernel32.FINDEX_SEARCH_OPS.FindExSearchNameMatch,
 				IntPtr.Zero,
 				Kernel32.FIND_FIRST.FIND_FIRST_EX_ON_DISK_ENTRIES_ONLY);
@@ -381,36 +380,6 @@ namespace SyncEngine
 			return await serverProvider.RemoveAsync(relativePath);
 		}
 
-		public async Task<Result> DownloadFileAsync(string relativePath, CancellationToken cancellationToken)
-		{
-			string fullPath = GetFullPath(relativePath);
-			FileStream fs = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
-			var fileHandle = fs.SafeFileHandle;
-
-			//_ = serverProvider.DownloadFileAsync(relativePath, fs, cancellationToken);
-
-			//if (!downloadResult.Succeeded)
-			//{
-			//	Console.WriteLine($"Uploading {relativePath} failed: {downloadResult.Message}");
-			//}
-			//else
-			//{
-			//	Console.WriteLine($"Uploading {relativePath} succeed");
-			//	var inSyncResult = CfSetInSyncState(fileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
-
-			//	if (!inSyncResult.Succeeded)
-			//	{
-			//		Console.WriteLine($"Failed to set In_Sync_State, with hr 0x{inSyncResult:X8}");
-			//	}
-
-			//	//syncContext.SyncRoot.UpdatePlaceholder(uploadResult.Data!, CF_UPDATE_FLAGS.CF_UPDATE_FLAG_MARK_IN_SYNC);
-			//}
-
-			//return downloadResult;
-
-			return new Result();
-		}
-
 		public async Task<Result> UploadFileAsync(string relativePath, UploadMode uploadMode, CancellationToken cancellationToken)
 		{
 			string fullPath = GetFullPath(relativePath);
@@ -433,11 +402,7 @@ namespace SyncEngine
 				FileStream fss = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
 
 				// Update local LastWriteTime. Use Server Time to ensure consistent change time.
-				if (placeholder.LastWriteTime != remoteFileInfo.LastWriteTime)
-				{
-					var res = Windows.Win32.PInvoke.SetFileTime(fss.SafeFileHandle, null, null, remoteFileInfo.LastWriteTime.ToFileTimeStruct());
-					if (!res) Console.WriteLine(Marshal.GetLastWin32Error());
-				}
+				Windows.Win32.PInvoke.SetFileTime(fss.SafeFileHandle, null, null, remoteFileInfo.LastWriteTime.ToFileTimeStruct());
 
 				var inSyncResult = CfSetInSyncState(fss.SafeFileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
 

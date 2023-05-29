@@ -56,22 +56,17 @@ namespace SyncEngine.Source_Files.ServerProviders.YandexServerProvider
 			throw new NotImplementedException();
 		}
 
-		public async Task<DataResult<List<FileBasicInfo>>> GetFileList(string subDir, CancellationToken cancellationToken)
+		public async Task GetFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
 			var r = new FilesResourceRequest()
 			{
 				Offset = 0,
 				Limit = 0,
-				MediaType = new []{ MediaType.Image },
+				MediaType = new[] { MediaType.Image },
 			};
 
 			var info = await diskApi.MetaInfo.GetFilesInfoAsync(r, cancellationToken);
 
-			throw new NotImplementedException();
-		}
-
-		public Task GetFileListAsync(string subDir, CancellationToken cancellationToken)
-		{
 			throw new NotImplementedException();
 		}
 

@@ -43,8 +43,6 @@ namespace SyncEngine
 
 		public Task<Result> UploadFileAsync(string path, Stream fileStream, UploadMode uploadMode, CancellationToken cancellationToken);
 
-		public Task<DataResult<List<FileBasicInfo>>> GetFileList(string subDir, CancellationToken cancellationToken);
-
 		public Task GetFileListAsync(string subDir, CancellationToken cancellationToken);
 
 		public Task<Result> RemoveAsync(string relativePath);
