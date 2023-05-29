@@ -248,6 +248,18 @@ namespace SyncEngine
 			return result;
 		}
 
+		public void AddPlaceholder(string relativePath)
+		{
+			if(!placeholderList.ContainsKey(relativePath))
+			{
+				var fileHandle = Kernel32.FindFirstFile(relativePath, out WIN32_FIND_DATA findData);
+				if (!fileHandle.IsInvalid)
+				{
+					placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+				}
+			}
+		}
+
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
 			placeholderList.Clear();
@@ -274,9 +286,7 @@ namespace SyncEngine
 				do
 				{
 					if (findData.cFileName == "." || findData.cFileName == "..")
-					{
 						continue;
-					}
 
 					string relativePath = Path.Combine(subDir, findData.cFileName);
 					placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
@@ -387,6 +397,7 @@ namespace SyncEngine
 			FileStream fs = new(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
 
 			var uploadResult = await serverProvider.UploadFileAsync(relativePath, fs, uploadMode, cancellationToken);
+			fs.Close();
 
 			if (!uploadResult.Succeeded)
 			{
@@ -396,24 +407,24 @@ namespace SyncEngine
 			{
 				Console.WriteLine($"Uploading {relativePath} succeed");
 
-				var placeholder = placeholderList[relativePath];
+				// Update local Timestamps. Use Server Time to ensure consistent change time.
 				var remoteFileInfo = serverProvider.FileList[relativePath];
+				File.SetCreationTimeUtc(fullPath, remoteFileInfo.CreationTime.ToUniversalTime());
+				File.SetLastWriteTimeUtc(fullPath, remoteFileInfo.LastWriteTime.ToUniversalTime());
+				File.SetLastAccessTimeUtc(fullPath, remoteFileInfo.LastAccessTime.ToUniversalTime());
+				
+				FileStream fStream = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
 
-				FileStream fss = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
+				var inSyncResult = CfSetInSyncState(fStream.SafeFileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
 
-				// Update local LastWriteTime. Use Server Time to ensure consistent change time.
-				Windows.Win32.PInvoke.SetFileTime(fss.SafeFileHandle, null, null, remoteFileInfo.LastWriteTime.ToFileTimeStruct());
+				fStream.Close();
 
-				var inSyncResult = CfSetInSyncState(fss.SafeFileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
-
-				fss.Close();
-
-				if(!inSyncResult.Succeeded)
+				if (!inSyncResult.Succeeded)
 				{
-                    Console.WriteLine($"Failed to set In_Sync_State, with {inSyncResult:X8}");
-                }
+					Console.WriteLine($"Failed to set In_Sync_State, with {inSyncResult:X8}");
+				}
 
-				ReloadPlaceholder(placeholder);
+				ReloadPlaceholder(placeholderList[relativePath]);
 			}
 			
 			return uploadResult;
@@ -433,14 +444,17 @@ namespace SyncEngine
 			{
 				var placeholder = item.Value;
 
-				if (placeholder.ConvertToPlaceholder())
+				if (!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
 				{
-					ReloadPlaceholder(placeholder);
-				}
-				else
-				{
-                    Console.WriteLine($"{placeholder.RelativePath} is not a placeholder");
-                    continue;
+					if (placeholder.ConvertToPlaceholder())
+					{
+						ReloadPlaceholder(placeholder);
+					}
+					else
+					{
+						Console.WriteLine($"{placeholder.RelativePath} is not a placeholder");
+						continue;
+					}
 				}
 
 				if (!serverProvider.FileList.ContainsKey(item.Key))
@@ -449,6 +463,8 @@ namespace SyncEngine
 					if (placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_IN_SYNC))
 					{
 						// File or directory has been remotely deleted
+						placeholderList.Remove(item.Key);
+
 						Change change = new()
 						{
 							RelativePath = placeholder.RelativePath,
@@ -538,8 +554,6 @@ namespace SyncEngine
                     }
 				}
 			}
-
-			
 		}
 
 		private async void ResyncTimerCallback(object sender)
@@ -552,10 +566,10 @@ namespace SyncEngine
 			{
 				await SynchronizeAsync(string.Empty, GlobalShutdownToken);
 			}
-			//catch (Exception ex)
-			//{
-   //             Console.WriteLine($"Resync for root failed: {ex.Message}");
-   //         }
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Resync for root failed: {ex.Message}");
+			}
 			finally
 			{
 				ResyncTimer.Change(ResyncInterval, ResyncInterval);

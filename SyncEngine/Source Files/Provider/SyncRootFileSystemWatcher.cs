@@ -54,7 +54,7 @@ namespace SyncEngine
 						| NotifyFilters.Attributes | NotifyFilters.LastWrite | NotifyFilters.Size,
 				Filter = "*"
 			};
-			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
+			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnCreated);
 			fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Deleted += new FileSystemEventHandler(FileSystemWatcher_OnDeleted);
 			fsWatcher.Error += new ErrorEventHandler(FileSystemWatcher_OnError);
@@ -92,36 +92,26 @@ namespace SyncEngine
 			return true;
 		}
 
-		#region "Transferred into ctor
-		//private static void InitFileSystemWatcher()
-		//{
-		//	// Set up a Directory Watcher on the client side to handle user's changing things there
-		//	try
-		//	{
-		//		fsWatcher = new FileSystemWatcher
-		//		{
-		//			Path = ProviderFolderLocations.GetServerFolder(),
-		//			IncludeSubdirectories = true,
-		//			NotifyFilter = NotifyFilters.DirectoryName | NotifyFilters.FileName
-		//				| NotifyFilters.Attributes | NotifyFilters.LastWrite | NotifyFilters.Size,
-		//			Filter = "*"
-		//		};
-		//		fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
-		//		fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
-		//		fsWatcher.Error += new FileSystemEventHandler(FileSystemWatcher_OnError);
-		//		fsWatcher.EnableRaisingEvents = true;
+		private void FileSystemWatcher_OnCreated(object sender, FileSystemEventArgs e)
+		{
+			if (e.Name == "." || e.Name == "..") return;
 
-		//	}
-		//	catch
-		//	{
-		//              Console.WriteLine("Could not init directory watcher.");
-		//		throw;
-		//          }
-		//}
-		#endregion
+			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
+			syncContext.SyncRoot.AddPlaceholder(relativePath);
+
+			Change change = new()
+			{
+				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
+				Type = ChangeType.Created,
+				Time = DateTime.Now,
+			};
+			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
+		}
 
 		private void FileSystemWatcher_OnChanged(object sender, FileSystemEventArgs e)
 		{
+			if (e.Name == "." || e.Name == "..") return;
+
 			Change change = new()
 			{
 				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),

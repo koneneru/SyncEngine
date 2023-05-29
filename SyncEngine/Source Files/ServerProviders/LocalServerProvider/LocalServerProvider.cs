@@ -54,7 +54,7 @@ namespace SyncEngine.ServerProviders
 
 		private void ConnectionTimerCallback(object? state)
 		{
-			CheckProviderStatus();
+			
 		}
 
 		private void FullResyncTimerCallback(object? state)
@@ -138,15 +138,6 @@ namespace SyncEngine.ServerProviders
 			}
 		}
 
-		private bool CheckProviderStatus() // Maybe should be deleted
-		{
-			if (this.status == ServerProviderStatus.Disabled) return false;
-
-			bool isOnline = Directory.Exists(localServerPath);
-			ChangeStatus(isOnline ? ServerProviderStatus.Connected : ServerProviderStatus.Disconnected);
-			return isOnline;
-		}
-
 		public Task<DataResult<FileBasicInfo>> CreateDirectoryAsync(string path)
 		{
 			DataResult<FileBasicInfo> result;
@@ -224,7 +215,9 @@ namespace SyncEngine.ServerProviders
 				result = new(ex);
 			}
 
-			await GetFileListAsync(string.Empty, cancellationToken);
+			//await GetFileListAsync(string.Empty, cancellationToken);
+
+			UpdateFileList(path);
 
 			return result;
 		}
@@ -247,6 +240,14 @@ namespace SyncEngine.ServerProviders
 
 				fileStream.Dispose();
 			}
+		}
+
+		private void UpdateFileList(string relativePath)
+		{
+			string fullPath = Path.Combine(localServerPath, relativePath);
+			FileInfo fileInfo = new(fullPath);
+			if (fileList.ContainsKey(relativePath)) fileList[relativePath] = new FileBasicInfo(relativePath, fileInfo);
+			else fileList.Add(relativePath, new FileBasicInfo(relativePath, fileInfo));
 		}
 
 		private void RaiseFileChanged(FileChangedEventArgs e)
@@ -300,21 +301,30 @@ namespace SyncEngine.ServerProviders
 		{
 			Result result;
 
-			string fullPath = Path.Combine(localServerPath, relativePath);
-
-			try
+			if(fileList.Remove(relativePath))
 			{
-				if(File.Exists(fullPath)) File.Delete(fullPath);
-				else Directory.Delete(fullPath);
+				string fullPath = Path.Combine(localServerPath, relativePath);
 
-				fileList.Remove(relativePath);
+				try
+				{
+					if (File.Exists(fullPath)) File.Delete(fullPath);
+					else Directory.Delete(fullPath);
 
-				result = new();
+					fileList.Remove(relativePath);
+
+					result = new();
+				}
+				catch (Exception ex)
+				{
+					result = new(ex);
+				}
 			}
-			catch(Exception ex)
+			else
 			{
-				result = new(ex);
+				result = new(NtStatus.STATUS_UNSUCCESSFUL);
 			}
+
+			fileList.Remove(relativePath);
 
 			return Task.FromResult(result);
 		}

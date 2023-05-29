@@ -175,19 +175,23 @@ namespace SyncEngine
 
 			if (fileHandle.IsInvalid)
 			{
-                Console.WriteLine($"File handle for {RelativePath} is INVALID");
-				return false;
-            }
-
-			CF_CONVERT_FLAGS convertFlags = markInSync ? CF_CONVERT_FLAGS.CF_CONVERT_FLAG_MARK_IN_SYNC : CF_CONVERT_FLAGS.CF_CONVERT_FLAG_ENABLE_ON_DEMAND_POPULATION;
-
-			HRESULT result = CfConvertToPlaceholder(fileHandle.DangerousGetHandle(), FileIdentity, FileIdentityLength, convertFlags, out _);
-
-			if (!result.Succeeded)
+				Console.WriteLine($"File handle for {RelativePath} is INVALID");
+				CfCloseHandle(fileHandle);
+			}
+			else
 			{
-                Console.WriteLine($"Converting {RelativePath} to placeholder FAILED: {result.GetException().Message}");
-				return false;
-            }
+				CF_CONVERT_FLAGS convertFlags = markInSync ? CF_CONVERT_FLAGS.CF_CONVERT_FLAG_MARK_IN_SYNC : CF_CONVERT_FLAGS.CF_CONVERT_FLAG_ENABLE_ON_DEMAND_POPULATION;
+
+				HRESULT result = CfConvertToPlaceholder(fileHandle.DangerousGetHandle(), FileIdentity, FileIdentityLength, convertFlags, out _);
+
+				CfCloseHandle(fileHandle);
+
+				if (!result.Succeeded)
+				{
+					Console.WriteLine($"Converting {RelativePath} to placeholder FAILED: {result.GetException().Message}");
+					return false;
+				}
+			}
 
 			return true;
 		}

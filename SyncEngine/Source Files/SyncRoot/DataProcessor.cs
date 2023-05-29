@@ -151,6 +151,9 @@ namespace SyncEngine
 					{
 						try
 						{
+							if (item.RelativePath == "." || item.RelativePath == "..")
+								continue;
+
 							await ProcessDataLocal(item);
 						}
 						catch (Exception ex)
@@ -173,6 +176,9 @@ namespace SyncEngine
 					{
 						try
 						{
+							if (item.RelativePath == "." || item.RelativePath == "..")
+								continue;
+
 							await ChangesToProcessRemote.SendAsync(item);
 						}
 						catch (Exception ex)
@@ -188,10 +194,6 @@ namespace SyncEngine
 		#region "Local processing"
 		private async Task ProcessDataLocal(Change change)
 		{
-			if (change.Type == ChangeType.Created)
-			{
-				await AddToServerAsync(change);
-			}
 			var r = change.Type switch
 			{
 				ChangeType.Created => await AddLocalAsync(change),
@@ -245,11 +247,7 @@ namespace SyncEngine
 		#region "Remote processing"
 		private async Task ProcessDataRemote(Change change)
 		{
-			if (change.Type == ChangeType.Created)
-			{
-				await AddToServerAsync(change);
-			}
-			var r = change.Type switch
+			_ = change.Type switch
 			{
 				ChangeType.Created => await AddToServerAsync(change),
 				ChangeType.Deleted => await DeleteFromServerAsync(change),
