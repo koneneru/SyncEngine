@@ -56,6 +56,7 @@ namespace SyncEngine
 			};
 			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
+			fsWatcher.Deleted += new FileSystemEventHandler(FileSystemWatcher_OnDeleted);
 			fsWatcher.Error += new ErrorEventHandler(FileSystemWatcher_OnError);
 			fsWatcher.EnableRaisingEvents = true;
 		}
@@ -166,6 +167,17 @@ namespace SyncEngine
 			//	state = StorageProviderState.InSync;
 			//}
 			#endregion
+		}
+
+		private void FileSystemWatcher_OnDeleted(object sender, FileSystemEventArgs e)
+		{
+			Change change = new()
+			{
+				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
+				Type = ChangeType.Deleted,
+				Time = DateTime.Now,
+			};
+			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
 		}
 
 		private void FileSystemWatcher_OnError(object sender, ErrorEventArgs e)

@@ -339,6 +339,8 @@ namespace SyncEngine.ServerProviders
 				if(File.Exists(fullPath)) File.Delete(fullPath);
 				else Directory.Delete(fullPath);
 
+				fileList.Remove(relativePath);
+
 				result = new();
 			}
 			catch(Exception ex)

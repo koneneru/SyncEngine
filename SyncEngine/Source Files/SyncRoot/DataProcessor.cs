@@ -48,6 +48,18 @@ namespace SyncEngine
 			RemoteChanges.Enqueue(change);
 		}
 
+		public void AddLocalChange(Change change)
+		{
+			if (change.Type != ChangeType.Modified)
+			{				
+				LocalChanges.Enqueue(change);
+			}
+			else
+			{
+				//AddToProcessingQueue(relativePath);
+			}
+		}
+
 		public void AddLocalChange(string relativePath, ChangeType changeType)
 		{
 			if (changeType != ChangeType.Modified)
