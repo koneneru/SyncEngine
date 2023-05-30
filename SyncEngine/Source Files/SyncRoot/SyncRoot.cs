@@ -262,7 +262,6 @@ namespace SyncEngine
 
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
-			placeholderList.Clear();
 			await Task.Run(()=> GetLocalFileListRecursive(subDir), cancellationToken);
 		}
 
@@ -289,7 +288,22 @@ namespace SyncEngine
 						continue;
 
 					string relativePath = Path.Combine(subDir, findData.cFileName);
-					placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+
+					if (placeholderList.ContainsKey(relativePath))
+					{
+						var oldPlaceholer = placeholderList[relativePath];
+						var newPlaceholer = new Placeholder(localRootFolder, relativePath, findData);
+
+						if (oldPlaceholer.ETag != newPlaceholer.ETag)
+						{
+							placeholderList[relativePath] = newPlaceholer;
+						}
+						else continue;
+					}
+					else
+					{
+						placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+					}
 
 					if (findData.dwFileAttributes.HasFlag(System.IO.FileAttributes.Directory))
 					{
@@ -387,7 +401,10 @@ namespace SyncEngine
 
 		public async Task<Result> DeleteRemoteAsync(string relativePath)
 		{
-			return await serverProvider.RemoveAsync(relativePath);
+			if(placeholderList.Remove(relativePath))
+				return await serverProvider.RemoveAsync(relativePath);
+
+			return new Result(NtStatus.STATUS_CLOUD_FILE_INVALID_REQUEST);
 		}
 
 		public async Task<Result> UploadFileAsync(string relativePath, UploadMode uploadMode, CancellationToken cancellationToken)
@@ -409,13 +426,20 @@ namespace SyncEngine
 
 				// Update local Timestamps. Use Server Time to ensure consistent change time.
 				var remoteFileInfo = serverProvider.FileList[relativePath];
+
+				watcher.fsWatcher.EnableRaisingEvents = false;
+
 				File.SetCreationTimeUtc(fullPath, remoteFileInfo.CreationTime.ToUniversalTime());
 				File.SetLastWriteTimeUtc(fullPath, remoteFileInfo.LastWriteTime.ToUniversalTime());
 				File.SetLastAccessTimeUtc(fullPath, remoteFileInfo.LastAccessTime.ToUniversalTime());
-				
+
+				watcher.fsWatcher.EnableRaisingEvents = true;
+
 				FileStream fStream = new(fullPath, FileMode.Open, FileAccess.Write, FileShare.None);
 
+				watcher.fsWatcher.EnableRaisingEvents = false;
 				var inSyncResult = CfSetInSyncState(fStream.SafeFileHandle, CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
+				watcher.fsWatcher.EnableRaisingEvents = true;
 
 				fStream.Close();
 
@@ -550,7 +574,7 @@ namespace SyncEngine
 					var result = CfCreatePlaceholders(fullDestPath, new[] { createInfo }, 1, CF_CREATE_FLAGS.CF_CREATE_FLAG_NONE, out _);
 					if (!result.Succeeded)
 					{
-						Console.WriteLine($"CfCreatePlaceholders for {fileInfo.RelativePath} failed with hr, 0x{result:X8}");
+						Console.WriteLine($"CfCreatePlaceholders for {fileInfo.RelativePath} failed with {result}");
                     }
 				}
 			}

@@ -43,39 +43,56 @@ namespace SyncEngine
 			});
 		}
 
-		public void AddToChangeOnServerQueue(Change change)
-		{
-			RemoteChanges.Enqueue(change);
-		}
-
 		public void AddLocalChange(Change change)
 		{
-			if (change.Type != ChangeType.Modified)
-			{				
-				LocalChanges.Enqueue(change);
-			}
-			else
+
+			if (change.Type == ChangeType.Modified)
 			{
-				//AddToProcessingQueue(relativePath);
+				//var placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+				//var remoteFileInfo = syncContext.ServerProvider.FileList[change.RelativePath];
+
+				syncContext.SyncRoot.AddPlaceholder(change.RelativePath);
+
+				if (!syncContext.ServerProvider.FileList.ContainsKey(change.RelativePath))
+				{
+					change.Type = ChangeType.Created;
+				}
+				else
+				{
+					var placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+					var remoteFileInfo = syncContext.ServerProvider.FileList[change.RelativePath];
+
+					if (placeholder.ETag == remoteFileInfo.ETag)
+					{
+						change.Type = ChangeType.State;
+					}
+				}
 			}
+
+			LocalChanges.Enqueue(change);
 		}
 
 		public void AddLocalChange(string relativePath, ChangeType changeType)
 		{
-			if (changeType != ChangeType.Modified)
+			Change change = new()
 			{
-				Change change = new()
+				RelativePath = relativePath,
+				Type = changeType,
+				Time = DateTime.UtcNow,
+			};
+
+			if (changeType == ChangeType.Modified)
+			{
+				var placeholder = syncContext.SyncRoot.placeholderList[relativePath];
+				var remoteFileInfo = syncContext.ServerProvider.FileList[relativePath];
+
+				if (placeholder.ETag == remoteFileInfo.ETag)
 				{
-					RelativePath = relativePath,
-					Type = changeType,
-					Time = DateTime.UtcNow,
-				};
-				LocalChanges.Enqueue(change);
+					change.Type = ChangeType.State;
+				}
 			}
-			else
-			{
-				AddToProcessingQueue(relativePath);
-			}
+
+			LocalChanges.Enqueue(change);
 		}
 
 		public async void AddToProcessingQueue(string relativePath)
@@ -158,7 +175,7 @@ namespace SyncEngine
 						}
 						catch (Exception ex)
 						{
-							Console.WriteLine($"Failed to process changes of {item.RelativePath} with hr 0x{ex.HResult:X8}");
+							Console.WriteLine($"Failed to process changes of {item.RelativePath}: {ex.Message}");
 						}
 					}
 				}
@@ -179,11 +196,12 @@ namespace SyncEngine
 							if (item.RelativePath == "." || item.RelativePath == "..")
 								continue;
 
-							await ChangesToProcessRemote.SendAsync(item);
+							//await ChangesToProcessRemote.SendAsync(item);
+							await ProcessDataRemote(item);
 						}
 						catch (Exception ex)
 						{
-							Console.WriteLine($"Failed to process changes of {item.RelativePath} with hr 0x{ex.HResult:X8}");
+							Console.WriteLine($"Failed to process changes of {item.RelativePath}: {ex.Message}");
 						}
 					}
 				}

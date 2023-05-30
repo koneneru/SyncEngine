@@ -195,8 +195,6 @@ namespace SyncEngine
 
 		private async void OnFetchDataAsync(FetchDataParams fetchDataParams, CF_CALLBACK_INFO callbackInfo, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
 		{
-			//Placeholder? placeholder = (from a in placeholderList where string.Equals(fetchDataParams, a.RelativePath) select a).FirstOrDefault();
-
 			if (!placeholderList.ContainsKey(fetchDataParams.RelativePath))// ||
 				//placeholderList[fetchDataParams.RelativePath].StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
 			{

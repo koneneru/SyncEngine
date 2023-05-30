@@ -35,7 +35,7 @@ namespace SyncEngine
 	internal class SyncRootFileSystemWatcher
 	{
 		private SyncContext syncContext;
-		private FileSystemWatcher fsWatcher;
+		public FileSystemWatcher fsWatcher;
 		private bool shutdownWatcher;
 		private StorageProviderState state;
 		//private List<EventHandler<IInspectable>> statusChanged;
@@ -110,7 +110,10 @@ namespace SyncEngine
 
 		private void FileSystemWatcher_OnChanged(object sender, FileSystemEventArgs e)
 		{
+			if (e.ChangeType != WatcherChangeTypes.Changed) return;
 			if (e.Name == "." || e.Name == "..") return;
+
+			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
 
 			Change change = new()
 			{
@@ -118,7 +121,7 @@ namespace SyncEngine
 				Type = ChangeType.Modified,
 				Time = DateTime.Now,
 			};
-			syncContext.SyncRoot.dataProcessor.AddToProcessingQueue(syncContext.SyncRoot.GetRelativePath(e.FullPath));
+			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
 
 			#region "Old Implementation"
 			//var timer = new Stopwatch();

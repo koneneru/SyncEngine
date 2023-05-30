@@ -192,10 +192,10 @@ namespace SyncEngine.ServerProviders
 			try
 			{
 				string fullPath = Path.Combine(localServerPath, path);
-				if (uploadMode != UploadMode.Create)
-				{
-					fullPath = Path.Combine(localServerPath, "$_", Path.GetFileName(path));
-				}
+				//if (uploadMode != UploadMode.Create)
+				//{
+				//	fullPath = Path.Combine(localServerPath, "$_" + Path.GetFileName(path));
+				//}
 
 				FileMode fileMode = uploadMode switch
 				{
