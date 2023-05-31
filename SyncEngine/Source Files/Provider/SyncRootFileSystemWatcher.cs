@@ -97,7 +97,7 @@ namespace SyncEngine
 			if (e.Name == "." || e.Name == "..") return;
 
 			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
-			syncContext.SyncRoot.AddPlaceholder(relativePath);
+			syncContext.SyncRoot.AddPlaceholderToList(relativePath);
 
 			Change change = new()
 			{

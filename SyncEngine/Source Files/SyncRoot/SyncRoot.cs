@@ -249,7 +249,7 @@ namespace SyncEngine
 			return result;
 		}
 
-		public void AddPlaceholder(string relativePath)
+		public void AddPlaceholderToList(string relativePath)
 		{
 			string fullPath = Path.Combine(localRootFolder, relativePath);
 			var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
@@ -601,7 +601,7 @@ namespace SyncEngine
 					}
 					else
 					{
-						AddPlaceholder(fileInfo.RelativePath);
+						AddPlaceholderToList(fileInfo.RelativePath);
 					}
 				}
 			}

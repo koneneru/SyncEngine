@@ -51,7 +51,7 @@ namespace SyncEngine
 				//var placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
 				//var remoteFileInfo = syncContext.ServerProvider.FileList[change.RelativePath];
 
-				syncContext.SyncRoot.AddPlaceholder(change.RelativePath);
+				syncContext.SyncRoot.AddPlaceholderToList(change.RelativePath);
 
 				if (!syncContext.ServerProvider.FileList.ContainsKey(change.RelativePath))
 				{
