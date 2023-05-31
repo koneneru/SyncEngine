@@ -20,6 +20,7 @@ using Microsoft.Win32.SafeHandles;
 using System.IO;
 using Vanara.Extensions;
 using Windows.Win32;
+using System.Collections.Concurrent;
 
 namespace SyncEngine
 {
@@ -46,7 +47,7 @@ namespace SyncEngine
 		private CancellationToken GlobalShutdownToken => GlobalShutdownTokenSource.Token;
 
 
-		public Dictionary<string, Placeholder> placeholderList = new();
+		public ConcurrentDictionary<string, Placeholder> placeholderList = new();
 
 		//DataChangesQueue ToChangeDataOnServerQueue = new();
 
@@ -250,14 +251,24 @@ namespace SyncEngine
 
 		public void AddPlaceholder(string relativePath)
 		{
-			if(!placeholderList.ContainsKey(relativePath))
+			string fullPath = Path.Combine(localRootFolder, relativePath);
+			var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
+			if (!fileHandle.IsInvalid)
 			{
-				var fileHandle = Kernel32.FindFirstFile(relativePath, out WIN32_FIND_DATA findData);
-				if (!fileHandle.IsInvalid)
-				{
-					placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
-				}
+				var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
+				placeholderList.AddOrUpdate(relativePath, newPlaceholder, (ket, value) => newPlaceholder);
 			}
+
+			#region "Non-Concurrent Implementation"
+			//if(!placeholderList.ContainsKey(relativePath))
+			//{
+			//	var fileHandle = Kernel32.FindFirstFile(relativePath, out WIN32_FIND_DATA findData);
+			//	if (!fileHandle.IsInvalid)
+			//	{
+			//		placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+			//	}
+			//}
+			#endregion
 		}
 
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
@@ -289,21 +300,29 @@ namespace SyncEngine
 
 					string relativePath = Path.Combine(subDir, findData.cFileName);
 
-					if (placeholderList.ContainsKey(relativePath))
-					{
-						var oldPlaceholer = placeholderList[relativePath];
-						var newPlaceholer = new Placeholder(localRootFolder, relativePath, findData);
+					var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
+					var updatedPlaceholder = placeholderList.AddOrUpdate(relativePath, newPlaceholder,
+						(key, value) => value = value.ETag != newPlaceholder.ETag ? newPlaceholder : value);
 
-						if (oldPlaceholer.ETag != newPlaceholer.ETag)
-						{
-							placeholderList[relativePath] = newPlaceholer;
-						}
-						else continue;
-					}
-					else
-					{
-						placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
-					}
+					if (newPlaceholder.ETag == updatedPlaceholder.ETag) continue;
+
+					#region Non-Concurrent implementation"
+					//if (placeholderList.ContainsKey(relativePath))
+					//{
+					//	var oldPlaceholder = placeholderList[relativePath];
+					//	var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
+
+					//	if (oldPlaceholder.ETag != newPlaceholder.ETag)
+					//	{
+					//		placeholderList[relativePath] = newPlaceholder;
+					//	}
+					//	else continue;
+					//}
+					//else
+					//{
+					//	placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
+					//}
+					#endregion
 
 					if (findData.dwFileAttributes.HasFlag(System.IO.FileAttributes.Directory))
 					{
@@ -401,8 +420,13 @@ namespace SyncEngine
 
 		public async Task<Result> DeleteRemoteAsync(string relativePath)
 		{
-			if(placeholderList.Remove(relativePath))
+			if(placeholderList.TryRemove(relativePath, out _))
 				return await serverProvider.RemoveAsync(relativePath);
+
+			#region "Non-Concurrent Implementation"
+			//if (placeholderList.Remove(relativePath))
+			//	return await serverProvider.RemoveAsync(relativePath);
+			#endregion
 
 			return new Result(NtStatus.STATUS_CLOUD_FILE_INVALID_REQUEST);
 		}
@@ -487,7 +511,7 @@ namespace SyncEngine
 					if (placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_IN_SYNC))
 					{
 						// File or directory has been remotely deleted
-						placeholderList.Remove(item.Key);
+						placeholderList.TryRemove(item.Key , out _);
 
 						Change change = new()
 						{
@@ -567,7 +591,6 @@ namespace SyncEngine
 
 				if (!placeholderList.ContainsKey(item.Key))
 				{
-					//string baseDir = fileInfo.RelativePath[0..^fileInfo.RelativeFileName.Length];
 					string baseDir = item.Key[0..^fileInfo.RelativeFileName.Length];
 					string fullDestPath = Path.Combine(localRootFolder, baseDir);
 					var createInfo = fileInfo.ToPlaceholderCreateInfo();
@@ -575,7 +598,11 @@ namespace SyncEngine
 					if (!result.Succeeded)
 					{
 						Console.WriteLine($"CfCreatePlaceholders for {fileInfo.RelativePath} failed with {result}");
-                    }
+					}
+					else
+					{
+						AddPlaceholder(fileInfo.RelativePath);
+					}
 				}
 			}
 		}
