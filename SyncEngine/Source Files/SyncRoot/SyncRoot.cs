@@ -45,9 +45,9 @@ namespace SyncEngine
 
 
 		private CancellationToken GlobalShutdownToken => GlobalShutdownTokenSource.Token;
+		public string Root => localRootFolder;
 
-
-		public ConcurrentDictionary<string, Placeholder> placeholderList = new();
+		public ConcurrentDictionary<string, Placeholder?> placeholderList = new();
 
 		//DataChangesQueue ToChangeDataOnServerQueue = new();
 
@@ -60,7 +60,7 @@ namespace SyncEngine
 			serverProvider = cloud;
 
 			syncContext = new(this, cloud);
-			syncContext.ServerProvider.SyncContext = syncContext;
+			//syncContext.ServerProvider.SyncContext = syncContext;
 
 			ResyncTimer = new(ResyncTimerCallback, null, ResyncInterval, ResyncInterval);
 		}
@@ -75,7 +75,8 @@ namespace SyncEngine
 			// Start up the task that registers and hosts the services for the shell (such as custom states, menus, etc)
 			/*ShellServices.InitAndStartServiceTask();*/
 			// Register the provider with the shell so that the Sync Root shows up in File Explorer
-			Register();
+			//Register();
+			await Register();
 			// Hook up callback methods (in this class) for transferring files between client and server
 			isConnected = ConnectSyncRootTransferCallbacks();
 			// Initiate watcher
@@ -84,15 +85,15 @@ namespace SyncEngine
 			dataProcessor = new DataProcessor(syncContext);
 			// Connect to Server Provider
 			var connectionResult = await serverProvider.Connect();
-			if (connectionResult.Succeeded)
-			{
-                Console.WriteLine($"Connected to {serverProvider.ConnectionString}");
-            }
-			else
-			{
-				Console.WriteLine($"Failed to connect to {serverProvider.ConnectionString} with hr 0x{connectionResult.Status:X8}");
-            }
-			//CfUpdateSyncProviderStatus(ConnectionKey, CF_SYNC_PROVIDERstatus.CF_PROVIDERstatus_IDLE);
+			//if (connectionResult.Succeeded)
+			//{
+			//	Console.WriteLine($"Connected to {serverProvider.ConnectionString}");
+			//}
+			//else
+			//{
+			//	Console.WriteLine($"Failed to connect to {serverProvider.ConnectionString} with hr 0x{connectionResult.Status:X8}");
+			//}
+			CfUpdateSyncProviderStatus(ConnectionKey, CF_SYNC_PROVIDER_STATUS.CF_PROVIDER_STATUS_IDLE);
 			// Create the placeholders in the client folder so the user sees something
 			//Placeholders.Create(serverProvider.ConnectionString, string.Empty, localRootFolder);
 
@@ -102,18 +103,19 @@ namespace SyncEngine
 			// The file watcher will look for any changes on the files in the client (syncroot) in order
 			// to let the cloud know.
 
-			SynchronizeAsync(string.Empty, GlobalShutdownToken);
+			await SynchronizeAsync(string.Empty, GlobalShutdownToken);
+			//SynchronizeAsync(string.Empty, GlobalShutdownToken);
 
-			watcher.WatchAndWait();
+			//watcher.WatchAndWait();
 
 			// Stage 3: Done Running -- caused by Ctrl+C
 			//--------------------------------------------------------------------------------------------
 			// Unhook up those callback methods
-			await Stop();
+			//Stop();
 
 			// A real sync engine should NOT unregister the sync root upon exit.
 			// This is just to demonstrate the use of StorageProviderSyncRootManager.Unregister().
-			await Unregister();
+			//Unregister();
 		}
 
 		public async Task Stop()
@@ -144,7 +146,6 @@ namespace SyncEngine
 						StorageProviderHydrationPolicyModifier.StreamingAllowed,
 					// This icon is just for the sample. You should provide your own branded icon here
 					IconResource = @"%SystemRoot%\system32\imageres.dll,-1043",
-					//PopulationPolicy = StorageProviderPopulationPolicy.AlwaysFull,
 					PopulationPolicy = StorageProviderPopulationPolicy.Full,
 					InSyncPolicy = StorageProviderInSyncPolicy.FileLastWriteTime | StorageProviderInSyncPolicy.DirectoryLastWriteTime,
 					Version = Application.ProductVersion,
@@ -173,7 +174,7 @@ namespace SyncEngine
 			}
 		}
 
-		private async Task Unregister()
+		public async Task Unregister()
 		{
 			await Stop();
 			SyncRootRegistrar.Unregister(localRootFolder);
@@ -202,6 +203,11 @@ namespace SyncEngine
 				{
 					Callback = new CF_CALLBACK(OnCancelFetchData),
 					Type = CF_CALLBACK_TYPE.CF_CALLBACK_TYPE_CANCEL_FETCH_DATA
+				},
+				new CF_CALLBACK_REGISTRATION
+				{
+					Callback = new CF_CALLBACK(OnNotifyDelete),
+					Type = CF_CALLBACK_TYPE.CF_CALLBACK_TYPE_NOTIFY_DELETE
 				},
 				CF_CALLBACK_REGISTRATION.CF_CALLBACK_REGISTRATION_END
 			};
@@ -253,22 +259,15 @@ namespace SyncEngine
 		{
 			string fullPath = Path.Combine(localRootFolder, relativePath);
 			var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
-			if (!fileHandle.IsInvalid)
+			try
 			{
-				var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
-				placeholderList.AddOrUpdate(relativePath, newPlaceholder, (ket, value) => newPlaceholder);
+				if (!fileHandle.IsInvalid)
+				{
+					var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
+					placeholderList.AddOrUpdate(relativePath, newPlaceholder, (ket, value) => newPlaceholder);
+				}
 			}
-
-			#region "Non-Concurrent Implementation"
-			//if(!placeholderList.ContainsKey(relativePath))
-			//{
-			//	var fileHandle = Kernel32.FindFirstFile(relativePath, out WIN32_FIND_DATA findData);
-			//	if (!fileHandle.IsInvalid)
-			//	{
-			//		placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
-			//	}
-			//}
-			#endregion
+			finally { fileHandle.Close(); }
 		}
 
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
@@ -302,27 +301,9 @@ namespace SyncEngine
 
 					var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
 					var updatedPlaceholder = placeholderList.AddOrUpdate(relativePath, newPlaceholder,
-						(key, value) => value = value.ETag != newPlaceholder.ETag ? newPlaceholder : value);
+						(key, value) => newPlaceholder);
 
-					if (newPlaceholder.ETag == updatedPlaceholder.ETag) continue;
-
-					#region Non-Concurrent implementation"
-					//if (placeholderList.ContainsKey(relativePath))
-					//{
-					//	var oldPlaceholder = placeholderList[relativePath];
-					//	var newPlaceholder = new Placeholder(localRootFolder, relativePath, findData);
-
-					//	if (oldPlaceholder.ETag != newPlaceholder.ETag)
-					//	{
-					//		placeholderList[relativePath] = newPlaceholder;
-					//	}
-					//	else continue;
-					//}
-					//else
-					//{
-					//	placeholderList.Add(relativePath, new Placeholder(localRootFolder, relativePath, findData));
-					//}
-					#endregion
+					if (updatedPlaceholder == null || newPlaceholder.ETag == updatedPlaceholder.ETag) continue;
 
 					if (findData.dwFileAttributes.HasFlag(System.IO.FileAttributes.Directory))
 					{
@@ -343,22 +324,6 @@ namespace SyncEngine
 		public string GetRelativePath(string fullPath)
 		{
 			return Path.GetRelativePath(localRootFolder, fullPath);
-		}
-
-		public async Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath)
-		{
-			return await Task.Run(() => GetPlaceholder(relativePath));
-		}
-
-		private FileBasicInfo? GetPlaceholder(string relativePath)
-		{
-			string fullPath = GetFullPath(relativePath);
-			if (File.Exists(fullPath))
-			{
-				FileInfo fileInfo = new(fullPath);
-				return new FileBasicInfo(fullPath, fileInfo);
-			}
-			return default;
 		}
 
 		public Result UpdatePlaceholder(FileBasicInfo placeholder, CF_UPDATE_FLAGS cF_UPDATE_FLAGS)
@@ -420,15 +385,7 @@ namespace SyncEngine
 
 		public async Task<Result> DeleteRemoteAsync(string relativePath)
 		{
-			if(placeholderList.TryRemove(relativePath, out _))
-				return await serverProvider.RemoveAsync(relativePath);
-
-			#region "Non-Concurrent Implementation"
-			//if (placeholderList.Remove(relativePath))
-			//	return await serverProvider.RemoveAsync(relativePath);
-			#endregion
-
-			return new Result(NtStatus.STATUS_CLOUD_FILE_INVALID_REQUEST);
+			return await serverProvider.RemoveAsync(relativePath);
 		}
 
 		public async Task<Result> UploadFileAsync(string relativePath, UploadMode uploadMode, CancellationToken cancellationToken)
@@ -492,6 +449,14 @@ namespace SyncEngine
 			{
 				var placeholder = item.Value;
 
+				if(placeholder == null)
+				{
+					Console.WriteLine($"[SyncRoot: 498] Added {item.Key} marked as deleted");
+					if (!serverProvider.FileList.ContainsKey(item.Key))
+						placeholderList.TryRemove(item.Key, out _);
+					continue;
+				}
+
 				if (!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
 				{
 					if (placeholder.ConvertToPlaceholder())
@@ -517,10 +482,10 @@ namespace SyncEngine
 						{
 							RelativePath = placeholder.RelativePath,
 							Type = ChangeType.Deleted,
-							Time = DateTime.UtcNow,
 						};
 						dataProcessor.RemoteChanges.Enqueue(change);
-					}
+                        Console.WriteLine($"[SyncRoot: 532] Added {change.RelativePath} to RemoteChanges as {change.Type}");
+                    }
 					else
 					{
 						// File or directory was locally created
@@ -528,9 +493,9 @@ namespace SyncEngine
 						{
 							RelativePath = placeholder.RelativePath,
 							Type = ChangeType.Created,
-							Time = DateTime.UtcNow,
 						};
 						dataProcessor.LocalChanges.Enqueue(change);
+						Console.WriteLine($"[SyncRoot: 543] Added {change.RelativePath} to LocalChanges as {change.Type}");
 					}
 				}
 				else
@@ -552,9 +517,9 @@ namespace SyncEngine
 								{
 									RelativePath = placeholder.RelativePath,
 									Type = ChangeType.State,
-									Time = DateTime.UtcNow,
 								};
 								dataProcessor.RemoteChanges.Enqueue(change);
+								Console.WriteLine($"[SyncRoot: 567] Added {change.RelativePath} to RemoteChanges as {change.Type}");
 							}
 							else
 							{
@@ -562,10 +527,10 @@ namespace SyncEngine
 								Change change = new()
 								{
 									RelativePath = placeholder.RelativePath,
-									Type = ChangeType.Modified,
-									Time = DateTime.UtcNow,
+									Type = ChangeType.Modified
 								};
 								dataProcessor.LocalChanges.Enqueue(change);
+								Console.WriteLine($"[SyncRoot: 578] Added {change.RelativePath} to LocalChanges as {change.Type}");
 							}
 
 						}
@@ -575,17 +540,17 @@ namespace SyncEngine
 							Change change = new()
 							{
 								RelativePath = placeholder.RelativePath,
-								Type = ChangeType.Modified,
-								Time = DateTime.UtcNow,
+								Type = ChangeType.Modified
 							};
 							dataProcessor.RemoteChanges.Enqueue(change);
+							Console.WriteLine($"[SyncRoot: 591] Added {change.RelativePath} to RemoteChanges as {change.Type}");
 						}
 					}
 				}
 			}
 
 			// Add missing placeholders
-			foreach(var item in serverProvider.FileList)
+			foreach (var item in serverProvider.FileList)
 			{
 				var fileInfo = item.Value;
 

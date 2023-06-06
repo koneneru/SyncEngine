@@ -68,7 +68,7 @@ namespace SyncEngine
 			syncRootID.Append('!');
 			syncRootID.Append(System.Security.Principal.WindowsIdentity.GetCurrent().User?.Value);
 			syncRootID.Append('!');
-			syncRootID.Append(rootFolderPath.GetHashCode());
+			syncRootID.Append(Hasher.Hash(rootFolderPath));
 
 			return syncRootID.ToString();
 		}

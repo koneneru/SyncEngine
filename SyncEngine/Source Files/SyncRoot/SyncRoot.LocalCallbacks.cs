@@ -11,6 +11,7 @@ using Vanara;
 using Vanara.InteropServices;
 using Vanara.PInvoke;
 using Windows.ApplicationModel;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static Vanara.PInvoke.CldApi;
 using static Vanara.PInvoke.Kernel32;
 
@@ -137,6 +138,9 @@ namespace SyncEngine
 			var localPlaceholders = (from a in placeholderList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
 			var remoteFilesInfo = (from a in serverProvider.FileList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
 
+			//var localPlaceholders = (from a in placeholderList.Keys where a.StartsWith(subDir) select a).ToList();
+			//var remoteFilesInfo = (from a in serverProvider.FileList.Keys where a.StartsWith(subDir) select a).ToList();
+
 			fetchPlaceholdersStatus = NtStatus.STATUS_SUCCESS;
 
 			if (remoteFilesInfo.Count > 0)
@@ -170,7 +174,7 @@ namespace SyncEngine
 
 			if (fetchPlaceholdersStatus != NtStatus.STATUS_SUCCESS || !executeResult.Succeeded)
 			{
-				Console.WriteLine($"Failed to fetch placeholders, hr 0x{executeResult:X8}");
+				Console.WriteLine($"Failed to fetch placeholders {executeResult}");
 				return;
 			}
 			else
@@ -178,19 +182,19 @@ namespace SyncEngine
 				await LoadFileListAsync(subDir, cancellationToken);
 			}
 
-			foreach (var item in remoteFilesInfo)
-			{
-				var localPlaceholder = placeholderList[item];
+			//foreach (var item in remoteFilesInfo)
+			//{
+			//	var localPlaceholder = placeholderList[item];
 
-				if (!localPlaceholder.FileAttributes.HasFlag(FileAttributes.Directory) && serverProvider.FileList[item].ETag != localPlaceholder.ETag)
-					dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
-			}
+			//	if (!localPlaceholder.FileAttributes.HasFlag(FileAttributes.Directory) && serverProvider.FileList[item].ETag != localPlaceholder.ETag)
+			//		dataProcessor.AddToProcessingQueue(localPlaceholder.RelativePath);
+			//}
 
-			foreach (var item in localPlaceholders)
-			{
-				if (!serverProvider.FileList.ContainsKey(item))
-					dataProcessor.AddToProcessingQueue(item);
-			}
+			//foreach (var item in localPlaceholders)
+			//{
+			//	if (!serverProvider.FileList.ContainsKey(item))
+			//		dataProcessor.AddToProcessingQueue(item);
+			//}
 		}
 
 		private async void OnFetchDataAsync(FetchDataParams fetchDataParams, CF_CALLBACK_INFO callbackInfo, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
@@ -275,6 +279,30 @@ namespace SyncEngine
 				CompletionStatus = completionStatus
 			};
 			CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(tdParam);
+			CfExecute(opInfo, ref opParams);
+		}
+
+		private void OnNotifyDelete(in CF_CALLBACK_INFO callbackInfo, in CF_CALLBACK_PARAMETERS callbackParameters)
+		{
+			string fullPath = Path.Combine(callbackInfo.VolumeDosName, callbackInfo.NormalizedPath);
+			string relativePath = GetRelativePath(fullPath);
+			placeholderList[relativePath] = null;
+
+			//dataProcessor.LocalChanges.TryAdd(new Change()
+			dataProcessor.LocalChanges.Enqueue(new Change()
+			{
+				RelativePath = relativePath,
+				Type = ChangeType.Deleted
+			});
+			Console.WriteLine($"Added {relativePath} to LocalChanges as Deleted");
+
+			CF_OPERATION_INFO opInfo = CloudApiHelper.CreateOperationInfo(callbackInfo, CF_OPERATION_TYPE.CF_OPERATION_TYPE_ACK_DELETE);
+
+			CF_OPERATION_PARAMETERS opParams = CF_OPERATION_PARAMETERS.Create(new CF_OPERATION_PARAMETERS.ACKDELETE
+			{
+				Flags = CF_OPERATION_ACK_DELETE_FLAGS.CF_OPERATION_ACK_DELETE_FLAG_NONE,
+				CompletionStatus = NTStatus.STATUS_SUCCESS,
+			});
 			CfExecute(opInfo, ref opParams);
 		}
 	}

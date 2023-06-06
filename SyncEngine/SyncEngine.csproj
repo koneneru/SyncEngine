@@ -13,13 +13,23 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Source Files\ServerProviders\LocalServerProvider\ServerFileReader.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.2.164-beta">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="PresentationFramework" Version="4.6.0" />
     <PackageReference Include="Vanara.PInvoke.CldApi" Version="3.4.14" />
     <PackageReference Include="YandexDisk.Client" Version="1.3.27" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SDK\Disk.SDK.Provider (.NET 4.0)\Disk.SDK.Provider (.NET 4.0).csproj" />
+    <ProjectReference Include="..\SDK\Disk.Sdk\Disk.SDK.csproj" />
   </ItemGroup>
 
 </Project>

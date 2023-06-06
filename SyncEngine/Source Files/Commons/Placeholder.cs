@@ -41,7 +41,72 @@ namespace SyncEngine
 			placeholderState = CfGetPlaceholderStateFromFindData(findData);
 		}
 
-        private CF_PLACEHOLDER_STANDARD_INFO GetPlaceholderStandartInfo()
+		public bool ConvertToPlaceholder(bool markInSync = false)
+		{
+			if (PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
+				return true;
+
+			Console.WriteLine($"Converting {RelativePath} to placeholder");
+
+			CfOpenFileWithOplock(fullPath, CF_OPEN_FILE_FLAGS.CF_OPEN_FILE_FLAG_EXCLUSIVE, out var fileHandle);
+
+			if (fileHandle.IsInvalid)
+			{
+				Console.WriteLine($"File handle for {RelativePath} is INVALID");
+				CfCloseHandle(fileHandle);
+			}
+			else
+			{
+				CF_CONVERT_FLAGS convertFlags = markInSync ? CF_CONVERT_FLAGS.CF_CONVERT_FLAG_MARK_IN_SYNC : CF_CONVERT_FLAGS.CF_CONVERT_FLAG_ENABLE_ON_DEMAND_POPULATION;
+
+				HRESULT result = CfConvertToPlaceholder(fileHandle.DangerousGetHandle(), FileIdentity, FileIdentityLength, convertFlags, out _);
+
+				CfCloseHandle(fileHandle);
+
+				if (!result.Succeeded)
+				{
+					Console.WriteLine($"Converting {RelativePath} to placeholder FAILED: {result.GetException().Message}");
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		public Result Dehydrate(bool unpin = false)
+		{
+			if (!PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
+				return new Result(NtStatus.STATUS_NOT_A_CLOUD_FILE);
+			if (StandartInfo.PinState.HasFlag(CF_PIN_STATE.CF_PIN_STATE_PINNED) && !unpin)
+				return new Result(NtStatus.STATUS_CLOUD_FILE_PINNED);
+
+			Console.WriteLine($"Deghydrate placeholder {RelativePath}");
+
+			CfOpenFileWithOplock(fullPath, CF_OPEN_FILE_FLAGS.CF_OPEN_FILE_FLAG_EXCLUSIVE, out var fileHandle);
+			if (fileHandle.IsInvalid)
+			{
+				Console.WriteLine($"File handle for {RelativePath} is INVALID");
+				CfCloseHandle(fileHandle);
+
+				return new Result(NtStatus.STATUS_CLOUD_FILE_UNSUCCESSFUL);
+			}
+
+			var dehydrateFlag = unpin ? CF_DEHYDRATE_FLAGS.CF_DEHYDRATE_FLAG_NONE : CF_DEHYDRATE_FLAGS.CF_DEHYDRATE_FLAG_BACKGROUND;
+
+			HRESULT result = CfDehydratePlaceholder(fileHandle.DangerousGetHandle(), 0, -1, dehydrateFlag);
+			CfCloseHandle(fileHandle);
+
+			if (!result.Succeeded)
+			{
+				Exception ex = result.GetException();
+				Console.WriteLine($"Dehydrate placeholder {RelativePath} FAILED: {ex.Message}");
+				return new Result(ex);
+			}
+
+			return new Result();
+		}
+
+		private CF_PLACEHOLDER_STANDARD_INFO GetPlaceholderStandartInfo()
 		{
 			SafeFileHandle? fileHandle = null;
 			CF_PLACEHOLDER_STANDARD_INFO standartInfo = default;
@@ -129,6 +194,40 @@ namespace SyncEngine
 			return basicInfo;
 		}
 
+		public Result Hydrate()
+		{
+			if (!PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
+				return new Result(NtStatus.STATUS_NOT_A_CLOUD_FILE);
+
+			Console.WriteLine($"Hydrate placeholder {RelativePath}");
+
+			CfOpenFileWithOplock(fullPath, CF_OPEN_FILE_FLAGS.CF_OPEN_FILE_FLAG_EXCLUSIVE, out var fileHandle);
+			if (fileHandle.IsInvalid)
+			{
+				Console.WriteLine($"File handle for {RelativePath} is INVALID");
+				CfCloseHandle(fileHandle);
+
+				return new Result(NtStatus.STATUS_CLOUD_FILE_UNSUCCESSFUL);
+			}
+
+			HRESULT result = CfHydratePlaceholder(fileHandle.DangerousGetHandle());
+			CfCloseHandle(fileHandle);
+
+			if (!result.Succeeded)
+			{
+				Exception ex = result.GetException();
+				Console.WriteLine($"Hydrate placeholder {RelativePath} FAILED: {ex.Message}");
+				return new Result(ex);
+			}
+
+			return new Result();
+		}
+
+		public async Task<Result> HydrateAsync()
+		{
+			return await Task.Run(() => Hydrate());
+		}
+
 		public void SetInSyncState(CF_IN_SYNC_STATE inSyncState)
 		{
 			if(StandartInfo.InSyncState == inSyncState) return;
@@ -162,38 +261,6 @@ namespace SyncEngine
 			{
 				placeholder.SetInSyncState(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC);
 			}
-		}
-
-		public bool ConvertToPlaceholder(bool markInSync = false)
-		{
-			if (PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PLACEHOLDER))
-				return true;
-
-            Console.WriteLine($"Converting {RelativePath} to placeholder");
-
-            CfOpenFileWithOplock(fullPath, CF_OPEN_FILE_FLAGS.CF_OPEN_FILE_FLAG_EXCLUSIVE, out var fileHandle);
-
-			if (fileHandle.IsInvalid)
-			{
-				Console.WriteLine($"File handle for {RelativePath} is INVALID");
-				CfCloseHandle(fileHandle);
-			}
-			else
-			{
-				CF_CONVERT_FLAGS convertFlags = markInSync ? CF_CONVERT_FLAGS.CF_CONVERT_FLAG_MARK_IN_SYNC : CF_CONVERT_FLAGS.CF_CONVERT_FLAG_ENABLE_ON_DEMAND_POPULATION;
-
-				HRESULT result = CfConvertToPlaceholder(fileHandle.DangerousGetHandle(), FileIdentity, FileIdentityLength, convertFlags, out _);
-
-				CfCloseHandle(fileHandle);
-
-				if (!result.Succeeded)
-				{
-					Console.WriteLine($"Converting {RelativePath} to placeholder FAILED: {result.GetException().Message}");
-					return false;
-				}
-			}
-
-			return true;
 		}
 	}
 }

@@ -13,17 +13,17 @@ namespace SyncEngine
 {
 	public class FileBasicInfo
 	{
-		public readonly string RelativePath;
-		public readonly IntPtr FileIdentity;
-		public readonly uint FileIdentityLength;
-		public readonly string RelativeFileName;
-		public readonly long FileSize;
-		public readonly FileAttributes FileAttributes;
-		public readonly DateTime CreationTime;
-		public readonly DateTime LastAccessTime;
-		public readonly DateTime LastWriteTime;
-		public readonly DateTime ChangeTime;
-		public readonly string ETag;
+		public string RelativePath;
+		public IntPtr FileIdentity;
+		public uint FileIdentityLength;
+		public string RelativeFileName;
+		public long FileSize;
+		public FileAttributes FileAttributes;
+		public DateTime CreationTime;
+		public DateTime LastAccessTime;
+		public DateTime LastWriteTime;
+		public DateTime ChangeTime;
+		public string ETag;
 
 		public CF_FS_METADATA FsMetadata => new()
 		{
@@ -31,7 +31,12 @@ namespace SyncEngine
 			BasicInfo = CreateBasicInfo()
 		};
 
-		public FileBasicInfo(string relativePath, WIN32_FIND_DATA findData)
+        public FileBasicInfo()
+        {
+            
+        }
+
+        public FileBasicInfo(string relativePath, WIN32_FIND_DATA findData)
         {
 			RelativePath = relativePath;
 			FileIdentity = Marshal.StringToCoTaskMemUni(RelativePath);

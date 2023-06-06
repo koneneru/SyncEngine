@@ -1,10 +1,4 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Vanara.PInvoke;
+﻿using System.Collections.Concurrent;
 
 namespace SyncEngine
 {
@@ -12,10 +6,9 @@ namespace SyncEngine
 	{
 		public string RelativePath;
 		public ChangeType Type;
-		public DateTime Time;
 	}
 
-	public enum ChangeType : short
+	public enum ChangeType : byte
 	{
 		Deleted = 0,
 		Created = 1,
@@ -23,65 +16,24 @@ namespace SyncEngine
 		State = 3
 	}
 
-	public class ChangesQueue
+	public class ChangesQueue<T>
 	{
-		private readonly object _lock = new();
-		private readonly LinkedList<Change> _queue = new();
-		private readonly Dictionary<string, List<LinkedListNode<Change>>> _dictionary = new();
+		private readonly BlockingCollection<T> _queue = new();
+		private readonly HashSet<T> _set = new();
 
-		public Change Dequeue()
+		public bool Dequeue(out T? item, CancellationToken cancellationToken)
 		{
-			lock (_lock)
-			{
-				var item = _queue.First();
-				_queue.Remove(item);
-				if (_dictionary[item.RelativePath].Count == 1)
-				{
-					_dictionary.Remove(item.RelativePath);
-				}
-				else
-				{
-					_dictionary[item.RelativePath].RemoveAt(0);
-				}
-				return item;
-			}
+			var takeResult = _queue.TryTake(out item, -1, cancellationToken);
+			if (takeResult)
+				_set.Remove(item!);
+			return takeResult;
 		}
 
-		public void Enqueue(Change change)
+		public void Enqueue(T item)
 		{
-			lock (_lock)
-			{
-				if (_dictionary.ContainsKey(change.RelativePath))
-				{
-					if(change.Type == ChangeType.Deleted)
-					{
-						var nodes = _dictionary[change.RelativePath];
-						foreach (var node in nodes)
-						{
-							_queue.Remove(node);
-						}
-						_dictionary[change.RelativePath].Clear();
-					}
-				}
-				else
-				{
-					_dictionary.Add(change.RelativePath, new List<LinkedListNode<Change>>());
-				}
-				var newNode = _queue.AddLast(change);
-				_dictionary[change.RelativePath].Add(newNode);
-			}
-		}
+			if(!_set.Add(item)) return;
 
-		public bool TryDequeue(out Change change)
-		{
-			change = default;
-			lock ( _lock)
-			{
-				if (_queue.Count == 0) return false;
-
-				change = Dequeue();
-				return true;
-			}
+			_queue.Add(item);
 		}
 	}
 }

@@ -72,7 +72,7 @@ namespace SyncEngine
 			
 			_path = path;
 			_stream = new MemoryStream();
-			string fullPath = Path.Combine(_provider.ConnectionString, _path);
+			string fullPath = Path.Combine(_provider.Token, _path);
 			_status = DownloadingStatus.Downloading;
 			try
 			{

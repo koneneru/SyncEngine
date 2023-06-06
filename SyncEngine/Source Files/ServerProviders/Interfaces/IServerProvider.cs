@@ -1,5 +1,6 @@
 ﻿using SyncEngine.ServerProviders;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,13 +13,16 @@ namespace SyncEngine
 		public event EventHandler<ServerProviderStateChangedEventArgs> ServerProviderStateChanged;
 
 		public string ConnectionString { get; }
+
 		public bool IsConnected { get; }
+
+		public string Token { get; }
 
 		public ServerProviderStatus Status { get; }
 
 		public SyncContext SyncContext { get; set; }
 
-		public Dictionary<string, FileBasicInfo> FileList { get; }
+		public ConcurrentDictionary<string, FileBasicInfo> FileList { get; }
 
 		/// <summary>
 		/// Establishing a connection to the Server to check Authentication and for receiving realtime updates.
@@ -33,8 +37,6 @@ namespace SyncEngine
 		/// <returns>If function succeeds, it returns NTStatus.STATUS_SUCCESS. Otherwise, it returns NTStatus.STATUS_UNSUCCESSFUL</returns>
 		public Task<Result> Disconnect();
 
-		public IServerFileReader GetFileReader();
-
 		public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath);
 
 		public Task<DataResult<FileBasicInfo>> CreateDirectoryAsync(string path);
@@ -48,6 +50,8 @@ namespace SyncEngine
 		public Task<Result> RemoveAsync(string relativePath);
 
 		public IDownloader CreateDownloader();
+
+		//public void Authorize(System.Windows.Controls.WebBrowser browser = null);
 
 	}
 }

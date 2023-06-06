@@ -50,13 +50,13 @@ namespace SyncEngine
 			{
 				Path = path,
 				IncludeSubdirectories = true,
+				//NotifyFilter = NotifyFilters.Attributes,
 				NotifyFilter = NotifyFilters.DirectoryName | NotifyFilters.FileName
 						| NotifyFilters.Attributes | NotifyFilters.LastWrite | NotifyFilters.Size,
 				Filter = "*"
 			};
 			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnCreated);
 			fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
-			fsWatcher.Deleted += new FileSystemEventHandler(FileSystemWatcher_OnDeleted);
 			fsWatcher.Error += new ErrorEventHandler(FileSystemWatcher_OnError);
 			fsWatcher.EnableRaisingEvents = true;
 		}
@@ -94,6 +94,7 @@ namespace SyncEngine
 
 		private void FileSystemWatcher_OnCreated(object sender, FileSystemEventArgs e)
 		{
+			if (e.ChangeType != WatcherChangeTypes.Changed) return;
 			if (e.Name == "." || e.Name == "..") return;
 
 			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
@@ -102,8 +103,7 @@ namespace SyncEngine
 			Change change = new()
 			{
 				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
-				Type = ChangeType.Created,
-				Time = DateTime.Now,
+				Type = ChangeType.Created
 			};
 			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
 		}
@@ -113,62 +113,10 @@ namespace SyncEngine
 			if (e.ChangeType != WatcherChangeTypes.Changed) return;
 			if (e.Name == "." || e.Name == "..") return;
 
-			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
-
 			Change change = new()
 			{
 				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
-				Type = ChangeType.Modified,
-				Time = DateTime.Now,
-			};
-			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
-
-			#region "Old Implementation"
-			//var timer = new Stopwatch();
-			//timer.Start();
-			//state = StorageProviderState.Syncing;
-
-			//Console.WriteLine($"Processig change for {e.FullPath}");
-
-			//var attr = (FILE_FLAGS_AND_ATTRIBUTES)PInvoke.GetFileAttributesW(e.FullPath);
-			//if (!attr.HasFlag(FILE_FLAGS_AND_ATTRIBUTES.FILE_ATTRIBUTE_DIRECTORY))
-			//{
-			//	SafeFileHandle placeholder = PInvoke.CreateFileW(e.FullPath, FILE_ACCESS_FLAGS.FILE_READ_DATA, 0, null, FILE_CREATION_DISPOSITION.OPEN_EXISTING, 0, null);
-
-			//	long offset = 0;
-			//	long length = long.MaxValue;
-
-			//	if (attr.HasFlag(FILE_FLAGS_AND_ATTRIBUTES.FILE_ATTRIBUTE_PINNED))
-			//	{
-			//		Console.WriteLine($"Hydrating file {e.FullPath}");
-			//		CfHydratePlaceholder(placeholder);
-			//	}
-			//	else if (attr.HasFlag(FILE_FLAGS_AND_ATTRIBUTES.FILE_ATTRIBUTE_UNPINNED))
-			//	{
-			//		Console.WriteLine($"Dehydrating file {e.FullPath}");
-			//		CfDehydratePlaceholder(placeholder, offset, length, CF_DEHYDRATE_FLAGS.CF_DEHYDRATE_FLAG_NONE, IntPtr.Zero);
-			//	}
-
-			//	// For demonstration purposes, spent at least 3 seconds in the Syncing state.
-			//	timer.Stop();
-			//	var elapsed = timer.ElapsedMilliseconds;
-			//	if (elapsed < 3000)
-			//	{
-			//		Thread.Sleep((int)(3000 - elapsed));
-			//	}
-
-			//	state = StorageProviderState.InSync;
-			//}
-			#endregion
-		}
-
-		private void FileSystemWatcher_OnDeleted(object sender, FileSystemEventArgs e)
-		{
-			Change change = new()
-			{
-				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
-				Type = ChangeType.Deleted,
-				Time = DateTime.Now,
+				Type = ChangeType.Modified
 			};
 			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
 		}
