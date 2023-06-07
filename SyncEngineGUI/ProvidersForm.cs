@@ -1,7 +1,5 @@
 using SyncEngine;
 using SyncEngine.ServerProviders;
-using System.Windows.Controls.Primitives;
-using System.Windows.Documents;
 using static System.ComponentModel.Design.ObjectSelectorEditor;
 using static System.Windows.Forms.DataFormats;
 

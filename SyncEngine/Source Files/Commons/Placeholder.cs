@@ -232,12 +232,17 @@ namespace SyncEngine
 		{
 			if(StandartInfo.InSyncState == inSyncState) return;
 
-			HRESULT result;
-			using(FileStream fs = new(fullPath, FileMode.Open))
+			CfOpenFileWithOplock(fullPath, CF_OPEN_FILE_FLAGS.CF_OPEN_FILE_FLAG_EXCLUSIVE, out var handle);
+			if (handle.IsInvalid)
 			{
-				var fileHandle = fs.SafeFileHandle;
-				result = CfSetInSyncState(fileHandle, inSyncState, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
+				Console.WriteLine($"Handle for {RelativePath} is INVALID");
+				CfCloseHandle(handle);
+
+				return;
 			}
+
+			HRESULT result = CfSetInSyncState(handle.DangerousGetHandle(), inSyncState, CF_SET_IN_SYNC_FLAGS.CF_SET_IN_SYNC_FLAG_NONE);
+			CfCloseHandle(handle);
 
 			if(result.Succeeded)
 			{
@@ -253,7 +258,7 @@ namespace SyncEngine
 
 		public static void ValidateEtag(Placeholder placeholder, FileBasicInfo secondFile)
 		{
-            if (placeholder.ETag != secondFile.ETag)
+            if (placeholder.ETag != secondFile.ETag && !placeholder.HasFlag(FileAttributes.Directory))
 			{
 				placeholder.SetInSyncState(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC);
 			}

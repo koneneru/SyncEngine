@@ -25,6 +25,8 @@ namespace SyncEngine
 		private ActionBlock<Change> RemoteChangesProcessing;
 		private ActionBlock<Change> LocalChangesProcessing;
 
+		private HashSet<Change> inProcessing = new();
+
 		public DataProcessor(SyncContext context)
 		{
 			this.syncContext = context;
@@ -46,38 +48,78 @@ namespace SyncEngine
 
 		public void AddLocalChange(Change change)
 		{
-			if (change.Type == ChangeType.Modified)
+			if (!syncContext.SyncRoot.placeholderList.ContainsKey(change.RelativePath))
+				change.Type = ChangeType.Created;
+			else
 			{
-				string fullPath = Path.Combine(syncContext.SyncRoot.Root, change.RelativePath);
-				var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
-				try
+				if (change.Type == ChangeType.Modified)
 				{
-					if (!fileHandle.IsInvalid)
+					string fullPath = Path.Combine(syncContext.SyncRoot.Root, change.RelativePath);
+					var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
+					try
 					{
-						var newPlaceholder = new Placeholder(syncContext.SyncRoot.Root, change.RelativePath, findData);
-
-						fileHandle.Close();
-
-						var currentPlaceholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
-
-						if (newPlaceholder.StandartInfo.ModifiedDataSize == 0)
+						if (!fileHandle.IsInvalid)
 						{
-							if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
+							var newPlaceholder = new Placeholder(syncContext.SyncRoot.Root, change.RelativePath, findData);
+
+							fileHandle.Close();
+
+							var currentPlaceholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+
+							if (newPlaceholder.StandartInfo.ModifiedDataSize == 0)
 							{
-								currentPlaceholder = newPlaceholder;
-								change.Type = ChangeType.State;
-								syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
+								if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
+								{
+									currentPlaceholder = newPlaceholder;
+									change.Type = ChangeType.State;
+									syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
+								}
+								else return;
 							}
-							else return;
 						}
 					}
+					finally { fileHandle?.Close(); }
 				}
-				finally { fileHandle?.Close(); }
 			}
-
+			
 			LocalChanges.Enqueue(change);
 			Console.WriteLine($"[DataProcessor: 73] Added {change.RelativePath} to LocalChanges as {change.Type}");
 		}
+
+		//public void AddLocalChange(Change change)
+		//{
+		//	if (change.Type == ChangeType.Modified)
+		//	{
+		//		string fullPath = Path.Combine(syncContext.SyncRoot.Root, change.RelativePath);
+		//		var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
+		//		try
+		//		{
+		//			if (!fileHandle.IsInvalid)
+		//			{
+		//				var newPlaceholder = new Placeholder(syncContext.SyncRoot.Root, change.RelativePath, findData);
+
+		//				fileHandle.Close();
+
+		//				var currentPlaceholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+
+		//				if (newPlaceholder.StandartInfo.ModifiedDataSize == 0)
+		//				{
+		//					if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
+		//					{
+		//						currentPlaceholder = newPlaceholder;
+		//						change.Type = ChangeType.State;
+		//						syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
+		//					}
+		//					else return;
+		//				}
+		//			}
+		//		}
+		//		finally { fileHandle?.Close(); }
+		//	}
+
+		//	LocalChanges.Enqueue(change);
+		//	Console.WriteLine($"[DataProcessor: 73] Added {change.RelativePath} to LocalChanges as {change.Type}");
+		//}
 
 		private Task RunRemoteChangesProcessingTask()
 		{
@@ -92,8 +134,8 @@ namespace SyncEngine
 							if (item.RelativePath == "." || item.RelativePath == "..")
 								continue;
 
-							await RemoteChangesProcessing.SendAsync(item);
-							//await ProcessDataLocal(item);
+							//await RemoteChangesProcessing.SendAsync(item);
+							await ProcessRemoteChange(item);
 						}
 						catch (Exception ex)
 						{
@@ -118,8 +160,11 @@ namespace SyncEngine
 							if (item.RelativePath == "." || item.RelativePath == "..")
 								continue;
 
-							await LocalChangesProcessing.SendAsync(item);
-							//await ProcessDataRemote(item);
+							if(inProcessing.Add(item))
+							{
+								//await LocalChangesProcessing.SendAsync(item);
+								await ProcessLocalChange(item);
+							}
 						}
 						catch (Exception ex)
 						{
@@ -134,14 +179,17 @@ namespace SyncEngine
 		#region "Local processing"
 		private async Task ProcessLocalChange(Change change)
 		{
-			_ = change.Type switch
+			Task task = change.Type switch
 			{
-				ChangeType.Created => await AddToServerAsync(change),
-				ChangeType.Deleted => await DeleteFromServerAsync(change),
-				ChangeType.Modified => await ModifyOnServerAsync(change),
-				ChangeType.State => await ChangeStateAsync(change),
+				ChangeType.Created => AddToServerAsync(change),
+				ChangeType.Deleted => DeleteFromServerAsync(change),
+				ChangeType.Modified => ModifyOnServerAsync(change),
+				ChangeType.State => ChangeStateAsync(change),
 				_ => throw new NotSupportedException()
 			};
+
+			await task;
+			inProcessing.Remove(change);
 		}
 
 		private async Task<Result> AddToServerAsync(Change change)
@@ -222,12 +270,14 @@ namespace SyncEngine
 		#region "Remote processing"
 		private async Task ProcessRemoteChange(Change change)
 		{
-			_ = change.Type switch
+			Task task = change.Type switch
 			{
-				ChangeType.Created => await AddLocalAsync(change),
-				ChangeType.Deleted => await DeleteLocalAsync(change),
-				ChangeType.Modified => await ModifyLocalAsync(change),
+				ChangeType.Created => AddLocalAsync(change),
+				ChangeType.Deleted => DeleteLocalAsync(change),
+				ChangeType.Modified => ModifyLocalAsync(change),
 			};
+
+			await task;
 		}
 
 		private async Task<Result> AddLocalAsync(Change change)

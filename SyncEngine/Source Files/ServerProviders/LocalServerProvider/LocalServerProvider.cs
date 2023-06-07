@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Navigation;
 using Vanara.PInvoke;
 using Windows.Storage.Provider;
 using static Vanara.PInvoke.CldApi;
@@ -25,6 +24,9 @@ namespace SyncEngine.ServerProviders
 
 		public ConcurrentDictionary<string, FileBasicInfo> fileList = new();
 
+		private Task syncingTask;
+		public Task SyncingTask => syncingTask;
+
 		// Since this is a local disk to local-disk copy, it would happen really fast.
 		// This is the size of each chunk to be copied due to the overlapped approach.
 		// I pulled this number out of a hat.
@@ -33,7 +35,7 @@ namespace SyncEngine.ServerProviders
 		// move.
 		private readonly int chunkDelayms = 250;
 
-		private bool inSyncing = false;
+		//private bool inSyncing = false;
 
 		public ServerProviderStatus Status => status;
 
@@ -84,22 +86,22 @@ namespace SyncEngine.ServerProviders
 			return Task.FromResult(new Result());
 		}
 
-		public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath)
-		{
-			return Task.Run(() => GetPlaceholder(relativePath));
-		}
+		//public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath)
+		//{
+		//	return Task.Run(() => GetPlaceholder(relativePath));
+		//}
 
-		private FileBasicInfo? GetPlaceholder(string path)
-		{
-			string fullPath = Path.Combine(localServerPath, path);
-			if (File.Exists(fullPath))
-			{
-				FileInfo fileInfo = new(fullPath);
-				return new FileBasicInfo(fullPath, fileInfo);
-			}
-			else 
-				return default;
-		}
+		//private FileBasicInfo? GetPlaceholder(string path)
+		//{
+		//	string fullPath = Path.Combine(localServerPath, path);
+		//	if (File.Exists(fullPath))
+		//	{
+		//		FileInfo fileInfo = new(fullPath);
+		//		return new FileBasicInfo(fullPath, fileInfo);
+		//	}
+		//	else 
+		//		return default;
+		//}
 
 		private void ChangeStatus(ServerProviderStatus status)
 		{
@@ -138,6 +140,12 @@ namespace SyncEngine.ServerProviders
 			}
 
 			return Task.FromResult(result);
+		}
+
+		public async Task<Stream> DownloadFileAsync(string path, CancellationToken cancellationToken)
+		{
+			string fullPath = Path.Combine(Token, path);
+			return await Task.FromResult(new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
 		}
 
 		public async Task DownloadFileAsync(string path, Stream stream, CancellationToken cancellationToken)
@@ -243,13 +251,20 @@ namespace SyncEngine.ServerProviders
 
 		public async Task GetFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
-			if (!inSyncing)
+			if (syncingTask == null || syncingTask.IsCompleted)
 			{
-				inSyncing = true;
 				fileList.Clear();
-				await Task.Run(() => GetFileListRecursive(subDir), cancellationToken);
-				inSyncing = false;
-			}			
+				syncingTask = Task.Run(() => GetFileListRecursive(subDir), cancellationToken);
+				await syncingTask;
+			}
+
+			//if (!inSyncing)
+			//{
+			//	inSyncing = true;
+			//	fileList.Clear();
+			//	await Task.Run(() => GetFileListRecursive(subDir), cancellationToken);
+			//	inSyncing = false;
+			//}			
 		}
 
 		private void GetFileListRecursive(string subDir)
@@ -273,7 +288,7 @@ namespace SyncEngine.ServerProviders
 			}
 		}
 
-		public Task<Result> RemoveAsync(string relativePath)
+		public Task<Result> RemoveAsync(string relativePath, CancellationToken cancellationToken)
 		{
 			Result result;
 

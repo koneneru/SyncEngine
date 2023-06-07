@@ -22,6 +22,8 @@ namespace SyncEngine
 
 		public SyncContext SyncContext { get; set; }
 
+		public Task SyncingTask { get; }
+
 		public ConcurrentDictionary<string, FileBasicInfo> FileList { get; }
 
 		/// <summary>
@@ -37,17 +39,19 @@ namespace SyncEngine
 		/// <returns>If function succeeds, it returns NTStatus.STATUS_SUCCESS. Otherwise, it returns NTStatus.STATUS_UNSUCCESSFUL</returns>
 		public Task<Result> Disconnect();
 
-		public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath);
+		//public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath);
 
 		public Task<DataResult<FileBasicInfo>> CreateDirectoryAsync(string path);
 
-		public Task DownloadFileAsync(string path, Stream stream, CancellationToken cancellationToken);
+		//public Task DownloadFileAsync(string path, Stream stream, CancellationToken cancellationToken);
+
+		public Task<Stream> DownloadFileAsync(string path, CancellationToken cancellationToken);
 
 		public Task<Result> UploadFileAsync(string path, Stream fileStream, UploadMode uploadMode, CancellationToken cancellationToken);
 
 		public Task GetFileListAsync(string subDir, CancellationToken cancellationToken);
 
-		public Task<Result> RemoveAsync(string relativePath);
+		public Task<Result> RemoveAsync(string relativePath, CancellationToken cancellationToken);
 
 		public IDownloader CreateDownloader();
 

@@ -5,11 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Controls;
 using YandexDisk.Client.Clients;
 using YandexDisk.Client.Protocol;
-//using Disk.SDK;
-//using Disk.SDK.Provider;
 using System.Collections.Concurrent;
 using YandexDisk.Client.Clients;
 using YandexDisk.Client.Http;
@@ -28,6 +25,9 @@ namespace SyncEngine.ServerProviders
 		private readonly string accessToken;
 		private ServerProviderStatus status = ServerProviderStatus.Disabled;
 		private readonly System.Threading.Timer connectionTimer;
+
+		private Task syncingTask = Task.Delay(5000);
+		public Task SyncingTask => syncingTask;
 
 		private ConcurrentDictionary<string, FileBasicInfo> fileList = new();
 
@@ -53,11 +53,6 @@ namespace SyncEngine.ServerProviders
 
 			connectionTimer = new(ConnectionTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 		}
-
-		//private void SdkOnAuthorizeCompleted(object? sender, GenericSdkEventArgs<string> e)
-		//{
-		//	throw new NotImplementedException();
-		//}
 
 		public Task<Result> Connect()
 		{
@@ -108,6 +103,12 @@ namespace SyncEngine.ServerProviders
 			return Task.FromResult(new Result());
 		}
 
+		public async Task<Stream> DownloadFileAsync(string path, CancellationToken cancellationToken)
+		{
+			path = path.Replace("\\", "/");
+			return await diskApi.Files.DownloadFileAsync(path, cancellationToken);
+		}
+
 		public Task DownloadFileAsync(string path, Stream stream, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
@@ -127,16 +128,18 @@ namespace SyncEngine.ServerProviders
 
 			var info = await diskApi.MetaInfo.GetFilesInfoAsync(r, cancellationToken);
 
+			fileList.Clear();
 			foreach(var item in info.Items)
 			{
 				string relativePath = item.Path[6..];
+				relativePath = relativePath.Replace('/', '\\');
 				string dirPath = string.Empty;
 				int offset = 0;
 
 				while(relativePath[offset..] != item.Name)
 				{
 					var dirName = relativePath[offset..];
-					dirName = dirName[..dirName.IndexOf('/')];
+					dirName = dirName[..dirName.IndexOf('\\')];
 					dirPath = Path.Combine(dirPath, dirName);
 					offset += dirPath.Length + 1;
 
@@ -183,29 +186,68 @@ namespace SyncEngine.ServerProviders
 			}
 		}
 
-		public Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath)
-		{
-			throw new NotImplementedException();
-		}
+		//public async Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath, CancellationToken cancellationToken)
+		//{
+		//	throw new NotImplementedException();
+		//}
 
 		private void RaiseServerProviderStateChanged(ServerProviderStateChangedEventArgs e)
 		{
 			ServerProviderStateChanged?.Invoke(this, e);
 		}
 
-		public Task<Result> RemoveAsync(string relativePath)
+		public async Task<Result> RemoveAsync(string relativePath, CancellationToken cancellationToken)
 		{
-			throw new NotImplementedException();
+			DeleteFileRequest request = new()
+			{
+				Path = relativePath
+			};
+			_ = await diskApi.Commands.DeleteAsync(request, cancellationToken);
+
+			return new Result();
 		}
 
 		public async Task<Result> UploadFileAsync(string path, Stream fileStream, UploadMode uploadMode, CancellationToken cancellationToken)
 		{
-			bool overwrite = uploadMode == UploadMode.Create;
+			await diskApi.Files.UploadFileAsync(path.Replace('\\', '/'), true, fileStream, cancellationToken);
 
-			//await diskApi.Files.UploadFileAsync(path, overwrite, fileStream, cancellationToken);
-			await diskApi.Files.UploadFileAsync(path, overwrite, fileStream, cancellationToken);
+			//await GetFileListAsync(string.Empty, cancellationToken);
+			await UpdateFileInfo(path, cancellationToken);
+
+			return new Result();
 
 			throw new NotImplementedException();
+		}
+
+		private async Task UpdateFileInfo(string path, CancellationToken cancellationToken)
+		{
+			ResourceRequest request = new()
+			{
+				Limit = 1,
+				Path = path
+			};
+
+			var resource = await diskApi.MetaInfo.GetInfoAsync(request, cancellationToken);
+
+			FileBasicInfo basicInfo = new()
+			{
+				RelativePath = path,
+				RelativeFileName = resource.Name,
+				FileIdentity = Marshal.StringToCoTaskMemUni(path),
+				FileIdentityLength = (uint)(path.Length * Marshal.SizeOf(path[0])),
+				FileSize = resource.Size,
+				FileAttributes = resource.Type == ResourceType.Dir ? FileAttributes.Directory : FileAttributes.Normal,
+				CreationTime = resource.Created,
+				LastAccessTime = resource.Modified,
+				LastWriteTime = resource.Modified,
+				ChangeTime = resource.Modified,
+				ETag = new StringBuilder('_')
+						.Append(resource.Modified.ToUniversalTime().Ticks)
+						.Append('_')
+						.Append(resource.Size).ToString()
+			};
+
+			fileList.AddOrUpdate(path, basicInfo, (key, value) => basicInfo);
 		}
 	}
 }

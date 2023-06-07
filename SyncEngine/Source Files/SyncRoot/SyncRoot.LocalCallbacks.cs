@@ -120,7 +120,7 @@ namespace SyncEngine
 				TransferKey = callbackInfo.TransferKey,
 			};
 
-			OnFetchDataAsync(data, callbackInfo, opInfo, new CancellationToken());
+			OnFetchDataAsync(data, callbackInfo, opInfo, GlobalShutdownToken);
 		}
 
 		// When the fetch is cancelled, this happens. Our FileCopierWithProgress doesn't really care, because
@@ -135,11 +135,10 @@ namespace SyncEngine
 			NtStatus fetchPlaceholdersStatus;
 			SafeNativeArray<CF_PLACEHOLDER_CREATE_INFO> createInfo = new();
 
+			await serverProvider.SyncingTask;
+
 			var localPlaceholders = (from a in placeholderList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
 			var remoteFilesInfo = (from a in serverProvider.FileList.Keys where string.Equals(Path.GetDirectoryName(a), subDir) select a).ToList();
-
-			//var localPlaceholders = (from a in placeholderList.Keys where a.StartsWith(subDir) select a).ToList();
-			//var remoteFilesInfo = (from a in serverProvider.FileList.Keys where a.StartsWith(subDir) select a).ToList();
 
 			fetchPlaceholdersStatus = NtStatus.STATUS_SUCCESS;
 
@@ -214,50 +213,50 @@ namespace SyncEngine
 				return;
 			}
 
-			IntPtr ptr = IntPtr.Zero;
+			Stream? stream = default;
 			try
 			{
-				IDownloader downloader = serverProvider.CreateDownloader();
-				_ = downloader.StartDownloading(fetchDataParams.RelativePath, cancellationToken);
-
-				byte[] buffer = new byte[stackSize];
-				long startOffset = fetchDataParams.FileOffset;
-				long remainingLength = fetchDataParams.Length;
-
-				long total = fetchDataParams.Length;
-				long completed = 0;
-
-				unsafe
+				using (stream = await serverProvider.DownloadFileAsync(fetchDataParams.RelativePath, cancellationToken))
 				{
-					fixed (void* bufferPtr = buffer)
+					byte[] buffer = new byte[stackSize];
+					long startOffset = fetchDataParams.FileOffset;
+					long remainingLength = fetchDataParams.Length;
+
+					long total = fetchDataParams.Length;
+					long completed = 0;
+
+					unsafe
 					{
-
-						while (remainingLength > 0)
+						fixed (void* bufferPtr = buffer)
 						{
-							int bytesToRead = (int)Math.Min(remainingLength, stackSize);
-							int readBytes = downloader.Read(out byte[] readBuffer, 0, startOffset, bytesToRead);
-							NTStatus transferStatus = NTStatus.STATUS_SUCCESS;
 
-							if (downloader.Status == DownloadingStatus.Failed)
-								transferStatus = NTStatus.STATUS_UNSUCCESSFUL;
+							while (remainingLength > 0)
+							{
+								int bytesToRead = (int)Math.Min(remainingLength, stackSize);
+								int readBytes = stream.Read(buffer, 0, bytesToRead);
+								NTStatus transferStatus = NTStatus.STATUS_SUCCESS;
 
-							if (remainingLength == 0 && downloader.Status == DownloadingStatus.Completed)
-								transferStatus = NTStatus.STATUS_END_OF_FILE;
+								//if (downloader.Status == DownloadingStatus.Failed)
+								//	transferStatus = NTStatus.STATUS_UNSUCCESSFUL;
 
-							Marshal.Copy(readBuffer, 0, (IntPtr)bufferPtr, readBytes);
+								if (remainingLength == 0)
+									transferStatus = NTStatus.STATUS_END_OF_FILE;
 
-							TransferData(
-								opInfo,
-								readBytes == 0 ? IntPtr.Zero : (IntPtr)bufferPtr,
-								startOffset,
-								Math.Min(readBytes, remainingLength),
-								transferStatus);
+								//Marshal.Copy(buffer, 0, (IntPtr)bufferPtr, readBytes);
 
-							startOffset += readBytes;
-							completed += readBytes;
-							remainingLength -= readBytes;
+								TransferData(
+									opInfo,
+									readBytes == 0 ? IntPtr.Zero : (IntPtr)bufferPtr,
+									startOffset,
+									Math.Min(readBytes, remainingLength),
+									transferStatus);
 
-							CfReportProviderProgress(opInfo.ConnectionKey, opInfo.TransferKey, total, completed);
+								startOffset += readBytes;
+								completed += readBytes;
+								remainingLength -= readBytes;
+
+								CfReportProviderProgress(opInfo.ConnectionKey, opInfo.TransferKey, total, completed);
+							}
 						}
 					}
 				}
@@ -266,7 +265,82 @@ namespace SyncEngine
 			{
 				Console.WriteLine($"OnFetchDataAsync for {fetchDataParams} failed with {ex.Message}");
 			}
+			finally
+			{
+				stream?.Dispose();
+			}
 		}
+
+		//private async void OnFetchDataAsync(FetchDataParams fetchDataParams, CF_CALLBACK_INFO callbackInfo, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
+		//{
+		//	if (!placeholderList.ContainsKey(fetchDataParams.RelativePath))// ||
+		//		//placeholderList[fetchDataParams.RelativePath].StandartInfo.InSyncState.HasFlag(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_NOT_IN_SYNC))
+		//	{
+		//		Console.WriteLine($"Fetching data for {fetchDataParams} failed: STATUS_CLOUD_FILE_NOT_IN_SYNC");
+
+		//		TransferData(
+		//				opInfo,
+		//				IntPtr.Zero,
+		//				fetchDataParams.FileOffset,
+		//				1,
+		//				new NTStatus((uint)NtStatus.STATUS_NOT_A_CLOUD_FILE));
+
+		//		return;
+		//	}
+
+		//	IntPtr ptr = IntPtr.Zero;
+		//	try
+		//	{
+		//		IDownloader downloader = serverProvider.CreateDownloader();
+		//		_ = downloader.StartDownloading(fetchDataParams.RelativePath, cancellationToken);
+
+		//		byte[] buffer = new byte[stackSize];
+		//		long startOffset = fetchDataParams.FileOffset;
+		//		long remainingLength = fetchDataParams.Length;
+
+		//		long total = fetchDataParams.Length;
+		//		long completed = 0;
+
+		//		unsafe
+		//		{
+		//			fixed (void* bufferPtr = buffer)
+		//			{
+
+		//				while (remainingLength > 0)
+		//				{
+		//					int bytesToRead = (int)Math.Min(remainingLength, stackSize);
+		//					int readBytes = downloader.Read(out byte[] readBuffer, 0, startOffset, bytesToRead);
+		//					NTStatus transferStatus = NTStatus.STATUS_SUCCESS;
+
+		//					if (downloader.Status == DownloadingStatus.Failed)
+		//						transferStatus = NTStatus.STATUS_UNSUCCESSFUL;
+
+		//					if (remainingLength == 0 && downloader.Status == DownloadingStatus.Completed)
+		//						transferStatus = NTStatus.STATUS_END_OF_FILE;
+
+		//					Marshal.Copy(readBuffer, 0, (IntPtr)bufferPtr, readBytes);
+
+		//					TransferData(
+		//						opInfo,
+		//						readBytes == 0 ? IntPtr.Zero : (IntPtr)bufferPtr,
+		//						startOffset,
+		//						Math.Min(readBytes, remainingLength),
+		//						transferStatus);
+
+		//					startOffset += readBytes;
+		//					completed += readBytes;
+		//					remainingLength -= readBytes;
+
+		//					CfReportProviderProgress(opInfo.ConnectionKey, opInfo.TransferKey, total, completed);
+		//				}
+		//			}
+		//		}
+		//	}
+		//	catch (Exception ex)
+		//	{
+		//		Console.WriteLine($"OnFetchDataAsync for {fetchDataParams} failed with {ex.Message}");
+		//	}
+		//}
 
 		private static void TransferData(CF_OPERATION_INFO opInfo, IntPtr buffer, long offset, long length, NTStatus completionStatus)
 		{

@@ -4,10 +4,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.5.33530.505
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncEngine", "SyncEngine\SyncEngine.csproj", "{C7647B44-0362-450E-A29F-A98FF21F2C63}"
-	ProjectSection(ProjectDependencies) = postProject
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE} = {D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}
-		{D8BB0F49-5F72-414A-8976-19846DE293C2} = {D8BB0F49-5F72-414A-8976-19846DE293C2}
-	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncEngineConsole", "SyncEngineConsole\SyncEngineConsole.csproj", "{9E98C9A4-135D-454A-9224-601EF6C41E57}"
 EndProject
@@ -15,12 +11,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncEngineGUI", "SyncEngine
 	ProjectSection(ProjectDependencies) = postProject
 		{C7647B44-0362-450E-A29F-A98FF21F2C63} = {C7647B44-0362-450E-A29F-A98FF21F2C63}
 	EndProjectSection
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SDK", "SDK", "{24B518D3-2DA0-470D-8F64-5262EA99F40D}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Disk.SDK", "SDK\Disk.Sdk\Disk.SDK.csproj", "{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Disk.SDK.Provider (.NET 4.0)", "SDK\Disk.SDK.Provider (.NET 4.0)\Disk.SDK.Provider (.NET 4.0).csproj", "{D8BB0F49-5F72-414A-8976-19846DE293C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,21 +30,9 @@ Global
 		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{D8BB0F49-5F72-414A-8976-19846DE293C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{D8BB0F49-5F72-414A-8976-19846DE293C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{D8BB0F49-5F72-414A-8976-19846DE293C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{D8BB0F49-5F72-414A-8976-19846DE293C2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{D37D6F1C-812D-4096-B7CD-5EA46B48C4EE} = {24B518D3-2DA0-470D-8F64-5262EA99F40D}
-		{D8BB0F49-5F72-414A-8976-19846DE293C2} = {24B518D3-2DA0-470D-8F64-5262EA99F40D}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6052FDCC-EAA3-461B-B236-8D9D3B9EB63C}

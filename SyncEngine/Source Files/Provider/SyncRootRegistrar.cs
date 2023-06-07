@@ -7,19 +7,6 @@ using Windows.Storage.Provider;
 
 namespace SyncEngine
 {
-	//===============================================================
-	// SyncRootRegistrar
-	//
-	//	 This class registers the provider with the Shell so that
-	//   the syncroot shows up.
-	//
-	// Fakery Factor:
-	//
-	//   You shold be able to replace the strings with your real values
-	//   and then use this class as-is.
-	//
-	//===============================================================
-
 	internal class SyncRootRegistrar
 	{
 		public static async Task RegisterWithShell(StorageProviderSyncRootInfo info, Dictionary<int, string>? customStates = null)
@@ -40,8 +27,6 @@ namespace SyncEngine
 			await Task.Delay(1000);
 		}
 
-		// A real sync engine should NOT unregister the sync root upon exit.
-		// This is just to demonstrate the use of StorageProviderSyncRootManager.Unregister().
 		public static void Unregister(in string rootFolderPath)
 		{
 			try

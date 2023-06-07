@@ -55,7 +55,7 @@ namespace SyncEngine
 						| NotifyFilters.Attributes | NotifyFilters.LastWrite | NotifyFilters.Size,
 				Filter = "*"
 			};
-			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnCreated);
+			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Error += new ErrorEventHandler(FileSystemWatcher_OnError);
 			fsWatcher.EnableRaisingEvents = true;
@@ -90,22 +90,6 @@ namespace SyncEngine
 		{
 			shutdownWatcher = true;
 			return true;
-		}
-
-		private void FileSystemWatcher_OnCreated(object sender, FileSystemEventArgs e)
-		{
-			if (e.ChangeType != WatcherChangeTypes.Changed) return;
-			if (e.Name == "." || e.Name == "..") return;
-
-			string relativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath);
-			syncContext.SyncRoot.AddPlaceholderToList(relativePath);
-
-			Change change = new()
-			{
-				RelativePath = syncContext.SyncRoot.GetRelativePath(e.FullPath),
-				Type = ChangeType.Created
-			};
-			syncContext.SyncRoot.dataProcessor.AddLocalChange(change);
 		}
 
 		private void FileSystemWatcher_OnChanged(object sender, FileSystemEventArgs e)

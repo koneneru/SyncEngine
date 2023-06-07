@@ -272,7 +272,7 @@ namespace SyncEngine
 
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
 		{
-			await Task.Run(()=> GetLocalFileListRecursive(subDir), cancellationToken);
+			await Task.Run(() => GetLocalFileListRecursive(subDir), cancellationToken);
 		}
 
 		private void GetLocalFileListRecursive(string subDir)
@@ -303,7 +303,7 @@ namespace SyncEngine
 					var updatedPlaceholder = placeholderList.AddOrUpdate(relativePath, newPlaceholder,
 						(key, value) => newPlaceholder);
 
-					if (updatedPlaceholder == null || newPlaceholder.ETag == updatedPlaceholder.ETag) continue;
+					//if (updatedPlaceholder == null || newPlaceholder.ETag == updatedPlaceholder.ETag) continue;
 
 					if (findData.dwFileAttributes.HasFlag(System.IO.FileAttributes.Directory))
 					{
@@ -385,7 +385,7 @@ namespace SyncEngine
 
 		public async Task<Result> DeleteRemoteAsync(string relativePath)
 		{
-			return await serverProvider.RemoveAsync(relativePath);
+			return await serverProvider.RemoveAsync(relativePath, GlobalShutdownToken);
 		}
 
 		public async Task<Result> UploadFileAsync(string relativePath, UploadMode uploadMode, CancellationToken cancellationToken)
@@ -439,11 +439,18 @@ namespace SyncEngine
 		{
 			Console.WriteLine($"Start Synchronization for root\\{subDir}");
 
-			Task t1 = LoadFileListAsync(subDir, cancellationToken);
-			Task t2 = serverProvider.GetFileListAsync(subDir, cancellationToken);
+			try
+			{
+				Task t1 = LoadFileListAsync(subDir, cancellationToken);
+				Task t2 = serverProvider.GetFileListAsync(subDir, cancellationToken);
 
-			await t1;
-			await t2;
+				await t1;
+				await t2;
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
 
 			foreach(var item in placeholderList)
 			{

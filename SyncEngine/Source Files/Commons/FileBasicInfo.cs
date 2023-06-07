@@ -44,10 +44,10 @@ namespace SyncEngine
 			RelativeFileName = findData.cFileName;
 			FileSize = (long)findData.FileSize;
 			FileAttributes = findData.dwFileAttributes;
-			CreationTime = findData.ftCreationTime.ToDateTime();
-			LastAccessTime = findData.ftLastAccessTime.ToDateTime();
-			LastWriteTime = findData.ftLastWriteTime.ToDateTime();
-			ChangeTime = findData.ftLastWriteTime.ToDateTime();
+			CreationTime = findData.ftCreationTime.ToDateTime().ToUniversalTime();
+			LastAccessTime = findData.ftLastAccessTime.ToDateTime().ToUniversalTime();
+			LastWriteTime = findData.ftLastWriteTime.ToDateTime().ToUniversalTime();
+			ChangeTime = findData.ftLastWriteTime.ToDateTime().ToUniversalTime();
 			ETag = new StringBuilder('_')
 				.Append(LastWriteTime.ToUniversalTime().Ticks)
 				.Append('_')
