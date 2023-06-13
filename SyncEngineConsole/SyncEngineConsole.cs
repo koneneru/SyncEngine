@@ -41,8 +41,8 @@ public class Program
 			//}
 
 			LocalServerProvider localServerProvider = new("E:\\folders\\server");
-			SyncRoot syncRoot = new("E:\\folders\\client", localServerProvider);
-			syncRoot.Start();
+			//SyncRoot syncRoot = new("E:\\folders\\client", localServerProvider);
+			//syncRoot.Start();
 		}
 		catch
 		{

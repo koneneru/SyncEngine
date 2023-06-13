@@ -28,53 +28,147 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
+			components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+			TrayIcon = new NotifyIcon(components);
+			contextMenuStrip1 = new ContextMenuStrip(components);
+			CloseToolStripMenuItem = new ToolStripMenuItem();
+			AddRoot_btn = new Button();
+			RootPanel = new Panel();
 			Stop_btn = new Button();
 			Unregister_btn = new Button();
+			RootName_label = new Label();
+			RootsList_panel = new Panel();
+			contextMenuStrip1.SuspendLayout();
+			RootPanel.SuspendLayout();
+			RootsList_panel.SuspendLayout();
 			SuspendLayout();
+			// 
+			// TrayIcon
+			// 
+			TrayIcon.BalloonTipText = "KoneruSyncRoot";
+			TrayIcon.BalloonTipTitle = "KoneruSyncRoot";
+			TrayIcon.ContextMenuStrip = contextMenuStrip1;
+			TrayIcon.Icon = (Icon)resources.GetObject("TrayIcon.Icon");
+			TrayIcon.Text = "SyncEngine";
+			TrayIcon.Visible = true;
+			TrayIcon.MouseClick += TrayIcon_MouseClick;
+			// 
+			// contextMenuStrip1
+			// 
+			contextMenuStrip1.Items.AddRange(new ToolStripItem[] { CloseToolStripMenuItem });
+			contextMenuStrip1.Name = "contextMenuStrip1";
+			contextMenuStrip1.Size = new Size(110, 26);
+			// 
+			// CloseToolStripMenuItem
+			// 
+			CloseToolStripMenuItem.Name = "CloseToolStripMenuItem";
+			CloseToolStripMenuItem.Size = new Size(109, 22);
+			CloseToolStripMenuItem.Text = "Выйти";
+			CloseToolStripMenuItem.Click += CloseToolStripMenuItem_Click;
+			// 
+			// AddRoot_btn
+			// 
+			AddRoot_btn.FlatAppearance.BorderSize = 0;
+			AddRoot_btn.FlatStyle = FlatStyle.Flat;
+			AddRoot_btn.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
+			AddRoot_btn.Image = (Image)resources.GetObject("AddRoot_btn.Image");
+			AddRoot_btn.Location = new Point(18, 23);
+			AddRoot_btn.Margin = new Padding(3, 3, 15, 10);
+			AddRoot_btn.Name = "AddRoot_btn";
+			AddRoot_btn.Size = new Size(35, 35);
+			AddRoot_btn.TabIndex = 26;
+			AddRoot_btn.UseVisualStyleBackColor = true;
+			AddRoot_btn.Click += AddRoot_btn_Click;
+			// 
+			// RootPanel
+			// 
+			RootPanel.BorderStyle = BorderStyle.FixedSingle;
+			RootPanel.Controls.Add(Stop_btn);
+			RootPanel.Controls.Add(Unregister_btn);
+			RootPanel.Controls.Add(RootName_label);
+			RootPanel.Location = new Point(0, 0);
+			RootPanel.Name = "RootPanel";
+			RootPanel.Size = new Size(321, 40);
+			RootPanel.TabIndex = 28;
+			RootPanel.Visible = false;
 			// 
 			// Stop_btn
 			// 
+			Stop_btn.FlatAppearance.BorderSize = 0;
+			Stop_btn.FlatStyle = FlatStyle.Flat;
 			Stop_btn.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
-			Stop_btn.Location = new Point(13, 18);
-			Stop_btn.Margin = new Padding(3, 3, 15, 10);
+			Stop_btn.Image = (Image)resources.GetObject("Stop_btn.Image");
+			Stop_btn.Location = new Point(240, 1);
 			Stop_btn.Name = "Stop_btn";
-			Stop_btn.Size = new Size(95, 35);
-			Stop_btn.TabIndex = 24;
-			Stop_btn.Text = "Stop";
+			Stop_btn.Size = new Size(35, 35);
+			Stop_btn.TabIndex = 30;
 			Stop_btn.UseVisualStyleBackColor = true;
 			Stop_btn.Click += Stop_btn_Click;
 			// 
 			// Unregister_btn
 			// 
+			Unregister_btn.FlatAppearance.BorderSize = 0;
+			Unregister_btn.FlatStyle = FlatStyle.Flat;
 			Unregister_btn.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
-			Unregister_btn.Location = new Point(131, 18);
+			Unregister_btn.Image = (Image)resources.GetObject("Unregister_btn.Image");
+			Unregister_btn.Location = new Point(281, 1);
 			Unregister_btn.Name = "Unregister_btn";
-			Unregister_btn.Size = new Size(95, 35);
-			Unregister_btn.TabIndex = 25;
-			Unregister_btn.Text = "Unregister";
+			Unregister_btn.Size = new Size(35, 35);
+			Unregister_btn.TabIndex = 29;
 			Unregister_btn.UseVisualStyleBackColor = true;
 			Unregister_btn.Click += Unregister_btn_Click;
+			// 
+			// RootName_label
+			// 
+			RootName_label.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
+			RootName_label.Location = new Point(3, 8);
+			RootName_label.Name = "RootName_label";
+			RootName_label.Size = new Size(231, 21);
+			RootName_label.TabIndex = 0;
+			RootName_label.Text = "SE-Yandex --- Token";
+			// 
+			// RootsList_panel
+			// 
+			RootsList_panel.Controls.Add(RootPanel);
+			RootsList_panel.Location = new Point(18, 71);
+			RootsList_panel.Name = "RootsList_panel";
+			RootsList_panel.Size = new Size(342, 474);
+			RootsList_panel.TabIndex = 29;
 			// 
 			// MainForm
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
-			ClientSize = new Size(239, 73);
-			Controls.Add(Unregister_btn);
-			Controls.Add(Stop_btn);
-			FormBorderStyle = FormBorderStyle.FixedSingle;
+			ClientSize = new Size(360, 640);
+			ControlBox = false;
+			Controls.Add(RootsList_panel);
+			Controls.Add(AddRoot_btn);
+			FormBorderStyle = FormBorderStyle.None;
 			MaximizeBox = false;
 			MinimizeBox = false;
 			Name = "MainForm";
-			Padding = new Padding(10, 15, 10, 10);
+			Padding = new Padding(15, 20, 15, 10);
+			ShowInTaskbar = false;
+			StartPosition = FormStartPosition.Manual;
 			Text = "Koneru SyncRoot";
-			Load += MainForm_Load;
+			Deactivate += MainForm_Deactivate;
+			contextMenuStrip1.ResumeLayout(false);
+			RootPanel.ResumeLayout(false);
+			RootsList_panel.ResumeLayout(false);
 			ResumeLayout(false);
 		}
 
 		#endregion
-
-		private Button Stop_btn;
 		private Button Unregister_btn;
+		private NotifyIcon TrayIcon;
+		private Button AddRoot_btn;
+		private Panel RootPanel;
+		private Label RootName_label;
+		private ContextMenuStrip contextMenuStrip1;
+		private ToolStripMenuItem CloseToolStripMenuItem;
+		private Button DeleteRoot_btn;
+		private Panel RootsList_panel;
+		private Button Stop_btn;
 	}
 }

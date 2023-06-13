@@ -10,7 +10,7 @@ using static Vanara.PInvoke.CldApi;
 
 namespace SyncEngine
 {
-	public class DataProcessor
+	public class ChangesProcessor
 	{
 		SyncContext syncContext;
 
@@ -27,7 +27,7 @@ namespace SyncEngine
 
 		private HashSet<Change> inProcessing = new();
 
-		public DataProcessor(SyncContext context)
+		public ChangesProcessor(SyncContext context)
 		{
 			this.syncContext = context;
 
@@ -49,7 +49,9 @@ namespace SyncEngine
 		public void AddLocalChange(Change change)
 		{
 			if (!syncContext.SyncRoot.placeholderList.ContainsKey(change.RelativePath))
+			{
 				change.Type = ChangeType.Created;
+			}
 			else
 			{
 				if (change.Type == ChangeType.Modified)
@@ -70,7 +72,6 @@ namespace SyncEngine
 							{
 								if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
 								{
-									currentPlaceholder = newPlaceholder;
 									change.Type = ChangeType.State;
 									syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
 								}
@@ -83,7 +84,6 @@ namespace SyncEngine
 			}
 			
 			LocalChanges.Enqueue(change);
-			Console.WriteLine($"[DataProcessor: 73] Added {change.RelativePath} to LocalChanges as {change.Type}");
 		}
 
 		//public void AddLocalChange(Change change)

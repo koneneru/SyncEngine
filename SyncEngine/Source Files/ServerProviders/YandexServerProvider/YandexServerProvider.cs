@@ -198,6 +198,7 @@ namespace SyncEngine.ServerProviders
 
 		public async Task<Result> RemoveAsync(string relativePath, CancellationToken cancellationToken)
 		{
+			relativePath = relativePath.Replace('\\', '/');
 			DeleteFileRequest request = new()
 			{
 				Path = relativePath

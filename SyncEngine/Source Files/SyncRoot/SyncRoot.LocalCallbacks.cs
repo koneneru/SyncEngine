@@ -123,14 +123,12 @@ namespace SyncEngine
 			OnFetchDataAsync(data, callbackInfo, opInfo, GlobalShutdownToken);
 		}
 
-		// When the fetch is cancelled, this happens. Our FileCopierWithProgress doesn't really care, because
-		// it's fake.
 		private void OnCancelFetchData(in CF_CALLBACK_INFO callbackInfo, in CF_CALLBACK_PARAMETERS callbackParameters)
 		{
 			//FileCopierWithProgress.CancelCopyFromServerToClient(callbackInfo, callbackParameters);
 		}
 
-		private async void OnFetchPlaceholdersAsync(string subDir, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
+		private async Task OnFetchPlaceholdersAsync(string subDir, CF_OPERATION_INFO opInfo, CancellationToken cancellationToken)
 		{
 			NtStatus fetchPlaceholdersStatus;
 			SafeNativeArray<CF_PLACEHOLDER_CREATE_INFO> createInfo = new();
@@ -361,9 +359,8 @@ namespace SyncEngine
 			string fullPath = Path.Combine(callbackInfo.VolumeDosName, callbackInfo.NormalizedPath);
 			string relativePath = GetRelativePath(fullPath);
 			placeholderList[relativePath] = null;
-
-			//dataProcessor.LocalChanges.TryAdd(new Change()
-			dataProcessor.LocalChanges.Enqueue(new Change()
+						
+			changesProcessor.LocalChanges.Enqueue(new Change()
 			{
 				RelativePath = relativePath,
 				Type = ChangeType.Deleted
@@ -378,6 +375,27 @@ namespace SyncEngine
 				CompletionStatus = NTStatus.STATUS_SUCCESS,
 			});
 			CfExecute(opInfo, ref opParams);
+		}
+
+		private void FileSystemWatcher_OnChanged(object sender, FileSystemEventArgs e)
+		{
+			if (e.ChangeType != WatcherChangeTypes.Changed) return;
+			if (e.Name == "." || e.Name == "..") return;
+
+			string relativePath = GetRelativePath(e.FullPath);
+			if (placeholderList[relativePath] == null) return;
+
+			Change change = new()
+			{
+				RelativePath = relativePath,
+				Type = ChangeType.Modified
+			};
+			changesProcessor.AddLocalChange(change);
+		}
+
+		private void FileSystemWatcher_OnError(object sender, ErrorEventArgs e)
+		{
+
 		}
 	}
 }

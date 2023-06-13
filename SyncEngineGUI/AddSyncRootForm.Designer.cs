@@ -1,6 +1,6 @@
 ﻿namespace SyncEngineGUI
 {
-	partial class AddProviderForm
+	partial class AddSyncRootForm
 	{
 		/// <summary>
 		///  Required designer variable.
@@ -28,7 +28,7 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
-			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AddProviderForm));
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(AddSyncRootForm));
 			ProvidersForm_Title = new Label();
 			AddProviderTabControl = new TabControl();
 			SelectProviderPage = new TabPage();
@@ -316,12 +316,12 @@
 			// 
 			// label2
 			// 
-			label2.Location = new Point(332, 0);
+			label2.Location = new Point(-1, 0);
 			label2.Name = "label2";
-			label2.Size = new Size(241, 40);
+			label2.Size = new Size(574, 40);
 			label2.TabIndex = 9;
 			// 
-			// AddProviderForm
+			// AddSyncRootForm
 			// 
 			AutoScaleDimensions = new SizeF(7F, 15F);
 			AutoScaleMode = AutoScaleMode.Font;
@@ -329,7 +329,7 @@
 			Controls.Add(label2);
 			Controls.Add(AddProviderTabControl);
 			Controls.Add(ProvidersForm_Title);
-			Name = "AddProviderForm";
+			Name = "AddSyncRootForm";
 			StartPosition = FormStartPosition.CenterScreen;
 			Text = "Koneru SyncRoot";
 			Load += AddProviderForm_Load;
