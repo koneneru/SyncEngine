@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.33530.505
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncEngine", "SyncEngine\SyncEngine.csproj", "{C7647B44-0362-450E-A29F-A98FF21F2C63}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SyncEngineGUI", "SyncEngineGUI\SyncEngineGUI.csproj", "{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C7647B44-0362-450E-A29F-A98FF21F2C63} = {C7647B44-0362-450E-A29F-A98FF21F2C63}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C7647B44-0362-450E-A29F-A98FF21F2C63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7647B44-0362-450E-A29F-A98FF21F2C63}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7647B44-0362-450E-A29F-A98FF21F2C63}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7647B44-0362-450E-A29F-A98FF21F2C63}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E60DCC03-0C20-44E2-9274-DBE64CF6C4C2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6052FDCC-EAA3-461B-B236-8D9D3B9EB63C}
+	EndGlobalSection
+EndGlobal

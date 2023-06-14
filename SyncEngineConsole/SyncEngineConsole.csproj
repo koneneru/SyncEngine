@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	<ProjectGuid>{9E98C9A4-135D-454A-9224-601EF6C41E57}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+	<RootNamespace>koneru.SyncEngine.Console</RootNamespace>
+	<AssemblyName>SyncEngine Console</AssemblyName>
+	<TargetFramework>net6.0-windows10.0.22000.0</TargetFramework>
+	<TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+	<UseWindowsForms>true</UseWindowsForms>
+	<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+	<AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SyncEngine\SyncEngine.csproj">
+      <Project>{C7647B44-0362-450E-A29F-A98FF21F2C63}</Project>
+      <Name>SyncEngine</Name>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>

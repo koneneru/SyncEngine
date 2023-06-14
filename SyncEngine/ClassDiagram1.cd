@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ClassDiagram MajorVersion="1" MinorVersion="1">
+  <Class Name="SyncEngine.SyncRoot">
+    <Position X="6.5" Y="0.5" Width="2.75" />
+    <TypeIdentifier>
+      <HashCode>RMAQEAaQBCADgBAGECIAQAJAAAgBQGAAIgBoICABEAA=</HashCode>
+      <FileName>Source Files\SyncRoot\SyncRoot.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="serverProvider" />
+      <Field Name="syncContext" />
+      <Field Name="watcher" />
+      <Field Name="dataProcessor" />
+    </ShowAsAssociation>
+    <ShowAsCollectionAssociation>
+      <Field Name="placeholderList" />
+    </ShowAsCollectionAssociation>
+  </Class>
+  <Class Name="SyncEngine.ServerProviders.LocalServerProvider">
+    <Position X="17" Y="0.5" Width="2.5" />
+    <TypeIdentifier>
+      <HashCode>AGUAAhSEBgAkAAhgCCpAAIJACASEAAQAgKAAAAAAQAA=</HashCode>
+      <FileName>Source Files\ServerProviders\LocalServerProvider\LocalServerProvider.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Field Name="syncContext" />
+    </ShowAsAssociation>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="SyncEngine.SyncContext">
+    <Position X="11" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAACAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>Source Files\Commons\SyncContext.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SyncEngine.SyncRootFileSystemWatcher">
+    <Position X="1.5" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIIAAQAAAAAAAAAAAAQAAAAAAAAgAAEIAAAJCAEAAA=</HashCode>
+      <FileName>Source Files\Provider\SyncRootFileSystemWatcher.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SyncEngine.Placeholder">
+    <Position X="3.25" Y="0.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAQAACAEIAAgAAAAABAAAAAAAAAgEBAQAgAAAA=</HashCode>
+      <FileName>Source Files\Commons\Placeholder.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SyncEngine.DataProcessor">
+    <Position X="3.25" Y="5.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>IgCEACQQAYAABAAQAAAAAACAiAAAAIAAAAAAAAEAQQQ=</HashCode>
+      <FileName>Source Files\SyncRoot\DataProcessor.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="SyncEngine.LocalDownloader">
+    <Position X="22" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AEACAAAEAAACAAABAAAAAAAgAAAAAAAAAAAAAAAAABA=</HashCode>
+      <FileName>Source Files\ServerProviders\LocalServerProvider\LocalDownloader.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="Status" />
+    </ShowAsAssociation>
+    <Lollipop Position="0.2" />
+  </Class>
+  <Class Name="SyncEngine.FetchDataParams">
+    <Position X="10.75" Y="8.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAAAAAQAAAAAAAAAABEAABAACAAAAAAAAIAAAA=</HashCode>
+      <FileName>Source Files\SyncRoot\Helpers\FetchDataParams.cs</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Interface Name="SyncEngine.IServerProvider">
+    <Position X="13" Y="3" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAQAAACEAAAEAABACAhAAIIACACEAAQAACAAAAAAQAA=</HashCode>
+      <FileName>Source Files\ServerProviders\Interfaces\IServerProvider.cs</FileName>
+    </TypeIdentifier>
+    <ShowAsAssociation>
+      <Property Name="SyncContext" />
+    </ShowAsAssociation>
+  </Interface>
+  <Enum Name="SyncEngine.DownloadingStatus">
+    <Position X="22.25" Y="2.75" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAIAAAAAAAAIAAAAAAAAAAAAAAAAAEBAAAAAAAAA=</HashCode>
+      <FileName>Source Files\ServerProviders\LocalServerProvider\LocalDownloader.cs</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Font Name="Segoe UI" Size="9" />
+</ClassDiagram>
