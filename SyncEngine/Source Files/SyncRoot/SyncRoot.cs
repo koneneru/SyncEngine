@@ -26,7 +26,7 @@ namespace SyncEngine
 	{
 		readonly SyncContext syncContext;
 
-		private bool isConnected;
+		private bool status;
 		private readonly string localRootFolder;
 		private readonly IServerProvider serverProvider;
 		private readonly CancellationTokenSource GlobalShutdownTokenSource = new();
@@ -46,6 +46,8 @@ namespace SyncEngine
 
 		public SyncRootInfo Info { get; }
 
+		public bool IsConnected => status;
+
 		public string Root => localRootFolder;
 
 		public ConcurrentDictionary<string, Placeholder?> placeholderList = new();
@@ -64,35 +66,27 @@ namespace SyncEngine
 
 			syncContext = new(this, cloud);
 
-			ResyncTimer = new(ResyncTimerCallback, null, ResyncInterval, ResyncInterval);
-		}
-
-		public async Task Start()
-		{
-			// Stage 1: Setup
-			//--------------------------------------------------------------------------------------------
-			// The client folder (syncroot) must be indexed in order for states to properly display
-			// НУЖЕН ЛИ?
-			//Utilities.AddFolderToSearchIndexer(ProviderFolderLocations.GetClientFolder());
-			// Start up the task that registers and hosts the services for the shell (such as custom states, menus, etc)
-			/*ShellServices.InitAndStartServiceTask();*/
-
-			// Hook up callback methods (in this class) for transferring files between client and server
-			isConnected = ConnectSyncRootTransferCallbacks();
 			// Initiate watcher
 			InitWatcher();
 			// Initialize data processor
 			changesProcessor = new ChangesProcessor(syncContext);
+
+			ResyncTimer = new(ResyncTimerCallback!, null, Timeout.Infinite, Timeout.Infinite);
+		}
+
+		public async Task Start()
+		{
+			// Hook up callback methods (in this class) for transferring files between client and server
+			status = ConnectSyncRootTransferCallbacks();
 			// Connect to Server Provider
 			var connectionResult = await serverProvider.Connect();
-			//if (connectionResult.Succeeded)
-			//{
-			//	Console.WriteLine($"Connected to {serverProvider.ConnectionString}");
-			//}
-			//else
-			//{
-			//	Console.WriteLine($"Failed to connect to {serverProvider.ConnectionString} with hr 0x{connectionResult.Status:X8}");
-			//}
+
+			// Enable FileSystemWatcher
+			fsWatcher.EnableRaisingEvents = true;
+
+			// Run Auto Synchronization
+			ResyncTimer.Change(ResyncInterval, ResyncInterval);
+
 			CfUpdateSyncProviderStatus(ConnectionKey, CF_SYNC_PROVIDER_STATUS.CF_PROVIDER_STATUS_IDLE);
 
 			await SynchronizeAsync(string.Empty, GlobalShutdownToken);
@@ -100,14 +94,27 @@ namespace SyncEngine
 
 		public async Task Stop()
 		{
-			GlobalShutdownTokenSource.Cancel();
 			fsWatcher.EnableRaisingEvents = false;
+			ResyncTimer.Change(Timeout.Infinite, Timeout.Infinite);
+			GlobalShutdownTokenSource.Cancel();
 			await serverProvider.Disconnect();
 
-			if (isConnected)
+			if (status)
 			{
-				isConnected = !DisconnectSyncRootTransferCallbacks();
+				status = !DisconnectSyncRootTransferCallbacks();
 				CfUpdateSyncProviderStatus(ConnectionKey, CF_SYNC_PROVIDER_STATUS.CF_PROVIDER_STATUS_TERMINATED);
+			}
+		}
+
+		public void Pause()
+		{
+			fsWatcher.EnableRaisingEvents = false;
+			ResyncTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+			if (status)
+			{
+				status = !DisconnectSyncRootTransferCallbacks();
+				CfUpdateSyncProviderStatus(ConnectionKey, CF_SYNC_PROVIDER_STATUS.CF_PROVIDER_STATUS_DISCONNECTED);
 			}
 		}
 
@@ -214,7 +221,7 @@ namespace SyncEngine
 			fsWatcher.Created += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Changed += new FileSystemEventHandler(FileSystemWatcher_OnChanged);
 			fsWatcher.Error += new ErrorEventHandler(FileSystemWatcher_OnError);
-			fsWatcher.EnableRaisingEvents = true;
+			fsWatcher.EnableRaisingEvents = false;
 		}
 
 		private async Task LoadFileListAsync(string subDir, CancellationToken cancellationToken)
@@ -520,7 +527,7 @@ namespace SyncEngine
 
 		private async void ResyncTimerCallback(object sender)
 		{
-			if (!isConnected) return;
+			if (!status) return;
 
 			ResyncTimer.Change(Timeout.Infinite, Timeout.Infinite);
 

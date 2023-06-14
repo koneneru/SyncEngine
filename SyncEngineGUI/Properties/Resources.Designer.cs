@@ -63,6 +63,26 @@ namespace SyncEngineGUI.Properties {
         /// <summary>
         ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap continue_icon_32x32 {
+            get {
+                object obj = ResourceManager.GetObject("continue_icon_32x32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap pause_icon_32x32 {
+            get {
+                object obj = ResourceManager.GetObject("pause_icon_32x32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Поиск локализованного ресурса типа System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap x_icon_32x32 {
             get {
                 object obj = ResourceManager.GetObject("x_icon_32x32", resourceCulture);

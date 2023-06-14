@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using YandexDisk.Client.Clients;
 using YandexDisk.Client.Protocol;
 using System.Collections.Concurrent;
-using YandexDisk.Client.Clients;
 using YandexDisk.Client.Http;
 using System.Runtime.InteropServices;
 
@@ -16,12 +15,9 @@ namespace SyncEngine.ServerProviders
 {
 	public class YandexServerProvider : IServerProvider
 	{
-		//#error define your client_id and return_url
 		private const string CLIENT_ID = "24b335c9dc014ffb9fce8beee6afa271";
-		private const string RETURN_URL = "localhost:12345/callback";
 
 		private IDiskApi diskApi;
-		//private IDiskSdkClient sdk;
 		private readonly string accessToken;
 		private ServerProviderStatus status = ServerProviderStatus.Disabled;
 		private readonly System.Threading.Timer connectionTimer;
@@ -39,8 +35,6 @@ namespace SyncEngine.ServerProviders
 		public string ConnectionString => accessToken;
 
 		public ServerProviderStatus Status => status;
-
-		public SyncContext SyncContext { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
 		public ConcurrentDictionary<string, FileBasicInfo> FileList => fileList;
 
@@ -186,11 +180,6 @@ namespace SyncEngine.ServerProviders
 			}
 		}
 
-		//public async Task<FileBasicInfo?> GetPlaceholderAsync(string relativePath, CancellationToken cancellationToken)
-		//{
-		//	throw new NotImplementedException();
-		//}
-
 		private void RaiseServerProviderStateChanged(ServerProviderStateChangedEventArgs e)
 		{
 			ServerProviderStateChanged?.Invoke(this, e);
@@ -212,12 +201,9 @@ namespace SyncEngine.ServerProviders
 		{
 			await diskApi.Files.UploadFileAsync(path.Replace('\\', '/'), true, fileStream, cancellationToken);
 
-			//await GetFileListAsync(string.Empty, cancellationToken);
 			await UpdateFileInfo(path, cancellationToken);
 
 			return new Result();
-
-			throw new NotImplementedException();
 		}
 
 		private async Task UpdateFileInfo(string path, CancellationToken cancellationToken)

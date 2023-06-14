@@ -39,6 +39,7 @@
 			Unregister_btn = new Button();
 			RootName_label = new Label();
 			RootsList_panel = new Panel();
+			button1 = new Button();
 			contextMenuStrip1.SuspendLayout();
 			RootPanel.SuspendLayout();
 			RootsList_panel.SuspendLayout();
@@ -104,7 +105,7 @@
 			Stop_btn.Size = new Size(35, 35);
 			Stop_btn.TabIndex = 30;
 			Stop_btn.UseVisualStyleBackColor = true;
-			Stop_btn.Click += Stop_btn_Click;
+			Stop_btn.Click += Pause_btn_Click;
 			// 
 			// Unregister_btn
 			// 
@@ -130,11 +131,24 @@
 			// 
 			// RootsList_panel
 			// 
+			RootsList_panel.Controls.Add(button1);
 			RootsList_panel.Controls.Add(RootPanel);
 			RootsList_panel.Location = new Point(18, 71);
 			RootsList_panel.Name = "RootsList_panel";
 			RootsList_panel.Size = new Size(342, 474);
 			RootsList_panel.TabIndex = 29;
+			// 
+			// button1
+			// 
+			button1.FlatAppearance.BorderSize = 0;
+			button1.FlatStyle = FlatStyle.Flat;
+			button1.Font = new Font("Segoe UI", 12F, FontStyle.Regular, GraphicsUnit.Point);
+			button1.Image = (Image)resources.GetObject("button1.Image");
+			button1.Location = new Point(241, 43);
+			button1.Name = "button1";
+			button1.Size = new Size(35, 35);
+			button1.TabIndex = 31;
+			button1.UseVisualStyleBackColor = true;
 			// 
 			// MainForm
 			// 
@@ -170,5 +184,6 @@
 		private Button DeleteRoot_btn;
 		private Panel RootsList_panel;
 		private Button Stop_btn;
+		private Button button1;
 	}
 }

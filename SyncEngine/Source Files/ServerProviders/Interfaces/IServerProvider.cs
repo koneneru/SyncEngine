@@ -20,8 +20,6 @@ namespace SyncEngine
 
 		public ServerProviderStatus Status { get; }
 
-		public SyncContext SyncContext { get; set; }
-
 		public Task SyncingTask { get; }
 
 		public ConcurrentDictionary<string, FileBasicInfo> FileList { get; }

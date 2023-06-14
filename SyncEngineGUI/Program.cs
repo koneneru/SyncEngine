@@ -6,7 +6,7 @@ namespace SyncEngineGUI
 	internal static class Program
 	{
 		public static ApplicationContext Context { get; set; }
-		public static List<SyncRoot> Roots { get; set; }
+		public static List<SyncRoot> Roots { get; set; } = new List<SyncRoot>();
 
 		/// <summary>
 		///  The main entry point for the application.
@@ -15,8 +15,6 @@ namespace SyncEngineGUI
 		static void Main()
 		{
 			ApplicationConfiguration.Initialize();
-
-			Roots = new List<SyncRoot>();
 
 			List<Task> regTasks = new();
 

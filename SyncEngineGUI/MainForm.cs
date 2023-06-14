@@ -39,16 +39,40 @@ namespace SyncEngineGUI
 
 		private void CloseToolStripMenuItem_Click(object sender, EventArgs e)
 		{
+			List<Task> tasks = new();
+			foreach(var item in Program.Roots)
+			{
+				tasks.Add(item.Stop());
+			}
+
+			Task.WaitAll(tasks.ToArray());
 			Application.Exit();
 		}
 
-		private async void Stop_btn_Click(object sender, EventArgs e)
+		private void Pause_btn_Click(object sender, EventArgs e)
 		{
-			Button btn = sender as Button;
-			var str = btn.Name[(btn.Name.LastIndexOf('-') + 1)..];
+			Button? btn = sender as Button;
+			var str = btn!.Name[(btn.Name.LastIndexOf('-') + 1)..];
 			int i = Convert.ToInt32(str);
 			var root = Program.Roots[i];
-			await root.Stop();
+			root.Pause();
+			
+			btn.Image = new Bitmap(Resources.continue_icon_32x32);
+			btn.Click += Continue_btn_Click!;
+		}
+
+		private async void Continue_btn_Click(object sender, EventArgs e)
+		{
+			Button? btn = sender as Button;
+			var str = btn!.Name[(btn.Name.LastIndexOf('-') + 1)..];
+			int i = Convert.ToInt32(str);
+			var root = Program.Roots[i];
+			Task task = root.Start();
+
+			btn.Image = new Bitmap(Resources.pause_icon_32x32);
+			btn.Click += Pause_btn_Click!;
+
+			await task;
 		}
 
 		private void AddRoot_btn_Click(object sender, EventArgs e)
@@ -60,8 +84,8 @@ namespace SyncEngineGUI
 
 		private async void Unregister_btn_Click(object sender, EventArgs e)
 		{
-			Button btn = sender as Button;
-			var str = btn.Name[(btn.Name.LastIndexOf('-') + 1)..];
+			Button? btn = sender as Button;
+			var str = btn!.Name[(btn.Name.LastIndexOf('-') + 1)..];
 			int i = Convert.ToInt32(str);
 			var root = Program.Roots[i];
 			Program.Roots.RemoveAt(i);
@@ -101,16 +125,24 @@ namespace SyncEngineGUI
 				};
 				panel.Controls.Add(label);
 
-				Button stopBtn = new()
+				Button pauseBtn = new()
 				{
-					Name = $"Stop_btn-{i}",
+					Name = $"Pause_btn-{i}",
 					FlatStyle = FlatStyle.Flat,
-					Image = new Bitmap(Resources.x_icon_32x32),
 					Location = new Point(240, 1),
 					Size = new Size(35, 35)
 				};
-				stopBtn.Click += Stop_btn_Click!;
-				panel.Controls.Add(stopBtn);
+				if (root.IsConnected)
+				{
+					pauseBtn.Image = new Bitmap(Resources.pause_icon_32x32);
+					pauseBtn.Click += Pause_btn_Click!;
+				}
+				else
+				{
+					pauseBtn.Image = new Bitmap(Resources.continue_icon_32x32);
+					pauseBtn.Click += Continue_btn_Click!;
+				}
+				panel.Controls.Add(pauseBtn);
 
 				Button unregisterBtn = new()
 				{

@@ -14,7 +14,6 @@ namespace SyncEngine.ServerProviders
 {
 	public class LocalServerProvider : IServerProvider
 	{
-		public SyncContext syncContext;
 
 		private string localServerPath;
 		private ServerProviderStatus status = ServerProviderStatus.Disconnected;
@@ -39,8 +38,6 @@ namespace SyncEngine.ServerProviders
 
 		public ServerProviderStatus Status => status;
 
-		public SyncContext SyncContext { get => syncContext; set => syncContext = value; }
-
 		public bool IsConnected => Status == ServerProviderStatus.Connected;
 
 		public ConcurrentDictionary<string, FileBasicInfo> FileList  => fileList;
@@ -51,6 +48,8 @@ namespace SyncEngine.ServerProviders
 		public LocalServerProvider(string token)
         {
 			localServerPath = token;
+
+			syncingTask = Task.Delay(100);
 
 			connectionTimer = new(ConnectionTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
