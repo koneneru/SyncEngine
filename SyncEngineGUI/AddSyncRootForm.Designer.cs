@@ -332,7 +332,6 @@
 			Name = "AddSyncRootForm";
 			StartPosition = FormStartPosition.CenterScreen;
 			Text = "Koneru SyncRoot";
-			Load += AddProviderForm_Load;
 			AddProviderTabControl.ResumeLayout(false);
 			SelectProviderPage.ResumeLayout(false);
 			SelectProviderPage.PerformLayout();

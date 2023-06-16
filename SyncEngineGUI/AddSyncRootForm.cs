@@ -1,27 +1,22 @@
 using SyncEngine;
 using SyncEngine.ServerProviders;
-using static System.ComponentModel.Design.ObjectSelectorEditor;
-using static System.Windows.Forms.DataFormats;
 
 namespace SyncEngineGUI
 {
 	public partial class AddSyncRootForm : Form
 	{
-		string providerName;
-		IServerProvider provider;
+		string providerName = string.Empty;
+		IServerProvider? provider;
 
-		TabControl tabControl;
+		private readonly TabControl tabControl;
 
 		public AddSyncRootForm()
 		{
 			InitializeComponent();
-			//this.FormBorderStyle = FormBorderStyle.FixedSingle;
-			//this.MaximizeBox = false;
-			//this.MinimizeBox = false;
-		}
+			this.FormBorderStyle = FormBorderStyle.FixedSingle;
+			this.MaximizeBox = false;
+			this.MinimizeBox = false;
 
-		private void AddProviderForm_Load(object sender, EventArgs e)
-		{
 			tabControl = Controls.OfType<TabControl>().First();
 		}
 
@@ -109,12 +104,12 @@ namespace SyncEngineGUI
 			providerName = "Yandex";
 			var form = new YandexAuthForm();
 			form.ClientId = YandexServerProvider.ClientId;
-			//this.Visible = false;
 			this.Hide();
+
 			form.ShowDialog();
 			form.Close();
 			provider = new YandexServerProvider(form.Token);
-			//this.Visible = true;
+
 			this.Show();
 			SelectRootFolder();
 		}
@@ -127,11 +122,13 @@ namespace SyncEngineGUI
 		private async void Complete_btn_Click(object sender, EventArgs e)
 		{
 			var rootFolderTextBox = tabControl.SelectedTab.Controls.OfType<TextBox>().First();
-			SyncRootInfo rootInfo = await SyncRootRegistrar.Register(rootFolderTextBox.Text, providerName, provider.Token);
+			SyncRootInfo rootInfo = await SyncRootRegistrar.Register(rootFolderTextBox.Text, providerName, provider!.Token);
 			SyncRoot root = new(rootInfo, provider);
+
+			Task task = root.Start();
 			Program.Roots.Add(root);
-			await root.Start();
 			this.Close();
+			await task;
 		}
 	}
 }
