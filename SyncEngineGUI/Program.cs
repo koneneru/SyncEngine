@@ -32,7 +32,6 @@ namespace SyncEngineGUI
 				regTasks.Add(root.Start());
 			}
 
-			//Context = new ApplicationContext(new AddProviderForm());
 			Context = new ApplicationContext(new MainForm());
 			Application.Run();
 

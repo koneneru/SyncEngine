@@ -14,7 +14,6 @@ namespace SyncEngineGUI
 {
 	public partial class MainForm : Form
 	{
-		private readonly SyncRoot syncRoot;
 		private readonly Panel rootListPanel;
 
 		public MainForm() : base()

@@ -52,8 +52,5 @@ namespace SyncEngine
 		public Task<Result> RemoveAsync(string relativePath, CancellationToken cancellationToken);
 
 		public IDownloader CreateDownloader();
-
-		//public void Authorize(System.Windows.Controls.WebBrowser browser = null);
-
 	}
 }

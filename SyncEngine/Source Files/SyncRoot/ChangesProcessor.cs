@@ -70,7 +70,7 @@ namespace SyncEngine
 
 							if (newPlaceholder.StandartInfo.ModifiedDataSize == 0)
 							{
-								if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
+								if (currentPlaceholder?.FileAttributes != newPlaceholder.FileAttributes)
 								{
 									change.Type = ChangeType.State;
 									syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
@@ -86,41 +86,6 @@ namespace SyncEngine
 			LocalChanges.Enqueue(change);
 		}
 
-		//public void AddLocalChange(Change change)
-		//{
-		//	if (change.Type == ChangeType.Modified)
-		//	{
-		//		string fullPath = Path.Combine(syncContext.SyncRoot.Root, change.RelativePath);
-		//		var fileHandle = Kernel32.FindFirstFile(fullPath, out WIN32_FIND_DATA findData);
-		//		try
-		//		{
-		//			if (!fileHandle.IsInvalid)
-		//			{
-		//				var newPlaceholder = new Placeholder(syncContext.SyncRoot.Root, change.RelativePath, findData);
-
-		//				fileHandle.Close();
-
-		//				var currentPlaceholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
-
-		//				if (newPlaceholder.StandartInfo.ModifiedDataSize == 0)
-		//				{
-		//					if (currentPlaceholder.FileAttributes != newPlaceholder.FileAttributes)
-		//					{
-		//						currentPlaceholder = newPlaceholder;
-		//						change.Type = ChangeType.State;
-		//						syncContext.SyncRoot.placeholderList[change.RelativePath] = newPlaceholder;
-		//					}
-		//					else return;
-		//				}
-		//			}
-		//		}
-		//		finally { fileHandle?.Close(); }
-		//	}
-
-		//	LocalChanges.Enqueue(change);
-		//	Console.WriteLine($"[DataProcessor: 73] Added {change.RelativePath} to LocalChanges as {change.Type}");
-		//}
-
 		private Task RunRemoteChangesProcessingTask()
 		{
 			return Task.Factory.StartNew(async () =>
@@ -134,8 +99,8 @@ namespace SyncEngine
 							if (item.RelativePath == "." || item.RelativePath == "..")
 								continue;
 
-							//await RemoteChangesProcessing.SendAsync(item);
-							await ProcessRemoteChange(item);
+							await RemoteChangesProcessing.SendAsync(item);
+							//await ProcessRemoteChange(item);
 						}
 						catch (Exception ex)
 						{
@@ -162,8 +127,8 @@ namespace SyncEngine
 
 							if(inProcessing.Add(item))
 							{
-								//await LocalChangesProcessing.SendAsync(item);
-								await ProcessLocalChange(item);
+								await LocalChangesProcessing.SendAsync(item);
+								//await ProcessLocalChange(item);
 							}
 						}
 						catch (Exception ex)
@@ -211,7 +176,7 @@ namespace SyncEngine
 			if (uploadResult.Succeeded)
 			{
 				var placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
-				placeholder.SetInSyncState(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC);
+				placeholder?.SetInSyncState(CF_IN_SYNC_STATE.CF_IN_SYNC_STATE_IN_SYNC);
 			}
 
 			return uploadResult;
@@ -226,7 +191,7 @@ namespace SyncEngine
 		{
 			Result modifyResult;
 
-			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath]!;
 
 			if (!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PARTIAL))
 			{
@@ -249,7 +214,7 @@ namespace SyncEngine
 
 		private async Task<Result> ChangeStateAsync(Change change)
 		{
-			var placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath]!;
 
 			// Dehydration requested
 			if (placeholder.StandartInfo.PinState.HasFlag(CF_PIN_STATE.CF_PIN_STATE_UNPINNED))
@@ -275,6 +240,7 @@ namespace SyncEngine
 				ChangeType.Created => AddLocalAsync(change),
 				ChangeType.Deleted => DeleteLocalAsync(change),
 				ChangeType.Modified => ModifyLocalAsync(change),
+				_ => throw new NotSupportedException()
 			};
 
 			await task;
@@ -294,7 +260,7 @@ namespace SyncEngine
 		{
 			Result modifyResult;
 
-			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath];
+			Placeholder placeholder = syncContext.SyncRoot.placeholderList[change.RelativePath]!;
 
 			if (!placeholder.PlaceholderState.HasFlag(CF_PLACEHOLDER_STATE.CF_PLACEHOLDER_STATE_PARTIAL))
 			{

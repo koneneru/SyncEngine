@@ -15,7 +15,7 @@ namespace SyncEngine.ServerProviders
 	public class LocalServerProvider : IServerProvider
 	{
 
-		private string localServerPath;
+		private readonly string localServerPath;
 		private ServerProviderStatus status = ServerProviderStatus.Disconnected;
 		private readonly System.Threading.Timer connectionTimer;
 
@@ -30,9 +30,6 @@ namespace SyncEngine.ServerProviders
 		// This is the size of each chunk to be copied due to the overlapped approach.
 		// I pulled this number out of a hat.
 		private static readonly int chunkSize = 4096;
-		// Arbitrary delay per chunk, again, so you can actually see the progress bar
-		// move.
-		private readonly int chunkDelayms = 250;
 
 		//private bool inSyncing = false;
 

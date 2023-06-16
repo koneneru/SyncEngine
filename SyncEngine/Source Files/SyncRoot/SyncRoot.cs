@@ -34,7 +34,6 @@ namespace SyncEngine
 		// registered/unregistered.
 		private CF_CONNECTION_KEY ConnectionKey;
 		public ChangesProcessor changesProcessor;
-		//private readonly int chunckSize = 1024 * 1024 * 2;
 		private readonly int stackSize = 1024 * 512; // Buffer size for P/Invoke Call to CFExecute max 1 MB
 
 		private readonly System.Threading.Timer ResyncTimer;
@@ -381,7 +380,7 @@ namespace SyncEngine
 					Console.WriteLine($"Failed to set In_Sync_State, with {inSyncResult:X8}");
 				}
 
-				ReloadPlaceholder(placeholderList[relativePath]);
+				ReloadPlaceholder(placeholderList[relativePath]!);
 			}
 			
 			return uploadResult;

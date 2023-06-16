@@ -17,7 +17,7 @@ namespace SyncEngine.ServerProviders
 	{
 		private const string CLIENT_ID = "24b335c9dc014ffb9fce8beee6afa271";
 
-		private IDiskApi diskApi;
+		private readonly IDiskApi diskApi;
 		private readonly string accessToken;
 		private ServerProviderStatus status = ServerProviderStatus.Disabled;
 		private readonly System.Threading.Timer connectionTimer;
